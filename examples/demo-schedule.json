@@ -1,0 +1,160 @@
+{
+  "schema_version": 2,
+  "owner": 1,
+  "team": 1,
+  "term": "2026–2027 秋冬学期",
+  "version": "fictional-demo-v1",
+  "week_start": "2026-09-14",
+  "display_range": {
+    "start": "2026-09-14",
+    "end": "2027-01-17"
+  },
+  "courses": [
+    {
+      "id": "demo-systems-a",
+      "name": "系统工程",
+      "teacher": "演示王老师",
+      "location": "演示楼101",
+      "note": "虚构 A 教学班，周六上午。"
+    },
+    {
+      "id": "demo-systems-b",
+      "name": "系统工程",
+      "teacher": "演示王老师",
+      "location": "演示楼202",
+      "note": "虚构 B 教学班，周六下午。"
+    },
+    {
+      "id": "demo-practice",
+      "name": "实践调研",
+      "teacher": "演示李老师",
+      "location": null,
+      "note": "虚构实践，具体时地待通知。"
+    },
+    {
+      "id": "demo-english",
+      "name": "英语交流（演示）",
+      "teacher": "演示陈老师",
+      "location": null,
+      "delivery_mode": "online",
+      "note": "虚构周期课程，结束时间待定。",
+      "recurrence": {
+        "weekday": 2,
+        "starts_on": "2026-09-22",
+        "until": null,
+        "start_time": "19:00",
+        "end_time": null,
+        "source": "fictional-demo",
+        "excluded_dates": []
+      }
+    }
+  ],
+  "events": [
+    {
+      "id": "demo-systems-a-2026-10-17",
+      "course_id": "demo-systems-a",
+      "course_name": "系统工程",
+      "teacher": "演示王老师",
+      "date": "2026-10-17",
+      "kind": "class",
+      "status": "scheduled",
+      "start_time": "08:50",
+      "end_time": "12:25",
+      "location": "演示楼101",
+      "note": "虚构演示安排",
+      "meeting_number": 1,
+      "timezone": "Asia/Shanghai"
+    },
+    {
+      "id": "demo-systems-b-2026-10-17",
+      "course_id": "demo-systems-b",
+      "course_name": "系统工程",
+      "teacher": "演示王老师",
+      "date": "2026-10-17",
+      "kind": "class",
+      "status": "scheduled",
+      "start_time": "13:25",
+      "end_time": "17:00",
+      "location": "演示楼202",
+      "note": "虚构演示安排",
+      "meeting_number": 1,
+      "timezone": "Asia/Shanghai"
+    },
+    {
+      "id": "demo-systems-a-2026-10-31",
+      "course_id": "demo-systems-a",
+      "course_name": "系统工程",
+      "teacher": "演示王老师",
+      "date": "2026-10-31",
+      "kind": "class",
+      "status": "scheduled",
+      "start_time": "08:50",
+      "end_time": "12:25",
+      "location": "演示楼101",
+      "note": "虚构演示安排",
+      "meeting_number": 2,
+      "timezone": "Asia/Shanghai"
+    },
+    {
+      "id": "demo-systems-b-2026-10-31",
+      "course_id": "demo-systems-b",
+      "course_name": "系统工程",
+      "teacher": "演示王老师",
+      "date": "2026-10-31",
+      "kind": "class",
+      "status": "scheduled",
+      "start_time": "13:25",
+      "end_time": "17:00",
+      "location": "演示楼202",
+      "note": "虚构演示安排",
+      "meeting_number": 2,
+      "timezone": "Asia/Shanghai"
+    },
+    {
+      "id": "demo-practice-2026-11-15",
+      "course_id": "demo-practice",
+      "course_name": "实践调研",
+      "teacher": "演示李老师",
+      "date": "2026-11-15",
+      "kind": "fieldwork",
+      "status": "details_pending",
+      "start_time": null,
+      "end_time": null,
+      "nominal_time": "08:50–12:25",
+      "location": null,
+      "note": "虚构实践：具体时地待通知。",
+      "meeting_number": 1,
+      "timezone": "Asia/Shanghai"
+    },
+    {
+      "id": "demo-systems-a-2027-01-09",
+      "course_id": "demo-systems-a",
+      "course_name": "系统工程",
+      "teacher": "演示王老师",
+      "date": "2027-01-09",
+      "kind": "class",
+      "status": "scheduled",
+      "start_time": "08:50",
+      "end_time": "12:25",
+      "location": "演示楼101",
+      "note": "虚构演示安排",
+      "meeting_number": 3,
+      "timezone": "Asia/Shanghai"
+    },
+    {
+      "id": "demo-systems-a-2027-01-16",
+      "course_id": "demo-systems-a",
+      "course_name": "系统工程",
+      "teacher": "演示王老师",
+      "date": "2027-01-16",
+      "kind": "class",
+      "status": "scheduled",
+      "start_time": "08:50",
+      "end_time": "12:25",
+      "location": "演示楼101",
+      "note": "虚构演示安排",
+      "meeting_number": 4,
+      "timezone": "Asia/Shanghai"
+    }
+  ]
+}
