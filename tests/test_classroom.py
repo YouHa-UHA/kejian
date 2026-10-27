@@ -54,6 +54,19 @@ class ClassroomTests(unittest.TestCase):
         self.assertIn('HttpOnly',self.call('/api/login',payload={'student':'2026000001','password':'test-password-123'})[1]['Set-Cookie'])
         self.assertEqual(provision(self.db,[{'student':'2026000001','name':'ignored'}]),[])
 
+    def test_testing_cookie_does_not_accept_production_cookie(self):
+        self.app=ClassroomApplication(self.db,origin='https://class.example',base='/mem-test/',cookie_name='kejian_test_session')
+        self.assertEqual(self.call('/api/session',cookie=self.cookies[0])[0],401)
+        status,headers,_=self.call('/api/login',payload={'student':'2026000001','password':'test-password-123'})
+        self.assertEqual(status,200)
+        cookie=headers['Set-Cookie']
+        self.assertTrue(cookie.startswith('kejian_test_session='))
+        self.assertIn('Path=/mem-test/;',cookie)
+        self.assertIn('Secure',cookie)
+        self.assertEqual(self.call('/api/session',cookie=cookie.split(';')[0])[0],200)
+        with self.assertRaises(ValueError):
+            ClassroomApplication(self.db,cookie_name='bad; injected=1')
+
     def test_default_password_login_and_repeat_roster_preserves_account(self):
         rows=[{'student':'2026000003','name':'初始密码测试'}]
         self.assertEqual(len(provision(self.db,rows,default_password='654321')),1)

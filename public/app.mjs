@@ -1,15 +1,19 @@
 import {confirmAction} from './confirm-ui.mjs';
 import {currentUser,checkSession,showAuth,openAccount,openSharing,request} from './account.mjs';
+import {notificationTarget} from './notification-target.mjs';
+import {mountUpdateNotice} from './update-notice.mjs';
 import {mountAiConnections} from './ai-ui.mjs';
 import {openCourseImport} from './import-ui.mjs';
 import {createCommunity} from './community-ui.mjs';
 import {openInstall} from './install.mjs';
 import {createHomework} from './homework-ui.mjs';
-import {ROUTES, routeFromHash, replaceRoute, watchViewport} from './browser.mjs';
+import {courseIdentity,searchCourses} from './course-ui.mjs';
+import {ROUTES, routeFromHash, replaceRoute, watchViewport, mountPickers, captureView, restoreView, createScheduleSync} from './browser.mjs';
 import {chinaClock, addDays, daysBetween, weekday, monday, weekNumber as baseWeekNumber, dateLabel, eventState, nextEvent, weekEvents, expandEvents, campusVisits, nextCampusVisit, eventPeriod, escapeHTML as esc, WEEKDAYS} from './schedule.mjs';
 const weekNumber=day=>baseWeekNumber(day,data?.week_start||'2026-09-14');
 const $=selector=>document.querySelector(selector);
-const icons={arrow:'<path d="M5 12h14m-6-6 6 6-6 6"/>',right:'<path d="m9 5 7 7-7 7"/>',left:'<path d="m15 5-7 7 7 7"/>',close:'<path d="m6 6 12 12M6 18 18 6"/>',pin:'<path d="M19 10c0 5-7 11-7 11S5 15 5 10a7 7 0 1 1 14 0Z"/><circle cx="12" cy="10" r="2.2"/>',clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',video:'<rect x="3" y="5" width="14" height="14" rx="3"/><path d="m17 10 4-3v10l-4-3"/>',calendar:'<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4m10-4v4M3 10h18"/>',check:'<path d="m5 12 4 4L19 6"/>',search:'<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/>',leaf:'<path d="M20 3C10 2 3 7 5 14c3 7 15 5 15-11ZM4 21 15 10"/>'};
+mountPickers();
+const icons={down:'<path d="m6 9 6 6 6-6"/>',arrow:'<path d="M5 12h14m-6-6 6 6-6 6"/>',right:'<path d="m9 5 7 7-7 7"/>',left:'<path d="m15 5-7 7 7 7"/>',close:'<path d="m6 6 12 12M6 18 18 6"/>',pin:'<path d="M19 10c0 5-7 11-7 11S5 15 5 10a7 7 0 1 1 14 0Z"/><circle cx="12" cy="10" r="2.2"/>',clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',video:'<rect x="3" y="5" width="14" height="14" rx="3"/><path d="m17 10 4-3v10l-4-3"/>',calendar:'<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4m10-4v4M3 10h18"/>',check:'<path d="m5 12 4 4L19 6"/>',search:'<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/>',leaf:'<path d="M20 3C10 2 3 7 5 14c3 7 15 5 15-11ZM4 21 15 10"/>'};
 const icon=(name)=>`<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[name]||icons.calendar}</svg>`;
 const themes={
  'theme-english':['#456797','#e9effb','英','英语'],
@@ -46,7 +50,7 @@ const gridPlace=e=>{
  const parts=e.location.match(/^(.*?)(\d+)$/);
  return parts?`<span class="grid-building">${esc(parts[1])}</span><span class="grid-room">${esc(parts[2])}</span>`:esc(e.location);
 };
-const sequence=e=>e.recurring?'每周二 · 按周安排':`第${e.meeting_number}次课`;
+const sequence=e=>e.recurring?`每周${WEEKDAYS[weekday(e.date)]}`:`第${e.meeting_number}次课`;
 const rangeText=v=>v.start===v.end?dateLabel(v.start):`${dateLabel(v.start)} — ${dateLabel(v.end)}`;
 const relative=e=>{const status=eventState(e,clock),diff=daysBetween(clock.date,e.date);if(status==='live')return '正在上课';if(status==='started_unknown_end')return '已到开课时间';if(diff===0)return e.kind==='fieldwork'?'今日实践':'今天';return diff===1?'明天':`${diff}天后`;};
 function nav(){
@@ -56,12 +60,13 @@ function nav(){
  document.body.dataset.route=state.route;
  document.title=`${{today:'今天',week:'周课表',courses:'课程',homework:'作业',ai:'连接 AI',manage:'课程管理'}[state.route]} · 课间`;
 }
-function goRoute(route,top=true){
+const routeScroll=new Map();
+function goRoute(route,top=false){
+ routeScroll.set(state.route,window.scrollY);
  if(!replaceRoute(route))return;
- render();if(top)window.scrollTo({top:0,behavior:'instant'});
+ render();window.scrollTo({top:top?0:(routeScroll.get(route)||0),behavior:'instant'});
 }
 function goWeek(day,filter=false){const changed=state.route!=='week';state.week=monday(day);state.day=filter?day:null;goRoute('week',changed);}
-const standalone=()=>window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;
 
 function hero(e){
  if(!e)return `<section class="finished-panel">${icon('check')}<h2>暂无后续安排</h2><p>可在「课程」中查看已排课程。</p><a class="text-link" href="#courses">查看全部课程 ${icon('arrow')}</a></section>`;
@@ -85,10 +90,10 @@ function home(){
  const todayEvents=data.events.filter(e=>e.date===clock.date),upcoming=nextEvent(data.events,clock),remaining=todayEvents.filter(e=>eventState(e,clock)!=='past');
  const week=monday(clock.date),events=weekEvents(data.events,week),n=weekNumber(clock.date),days=[...new Set(events.map(e=>e.date))];
  return `<section class="page-intro"><div class="date-eyebrow"><span>${dateLabel(clock.date)}<span class="dot-sep">·</span>星期${WEEKDAYS[weekday(clock.date)]}</span><span>${n>0&&clock.date<=data.display_range.end?`第 ${n} 教学周`:esc(data.term)}</span></div><h1>${todayEvents.length?(remaining.length?`今天 ${todayEvents.length} 次课`:'今日课程已结束'):'今天没有课'}</h1></section>
- <div class="home-layout"><div class="home-primary">${hero(upcoming)}${campusCard()}${homework.home()}${todayEvents.length>1?`<section class="today-agenda"><div class="section-heading"><h2>今日安排</h2><span>${todayEvents.length} 次课</span></div>${todayEvents.map(e=>row(e,{compact:true})).join('')}</section>`:''}</div>
- <div class="home-secondary"><section class="week-preview"><div class="section-heading"><h2>本周安排<small>${events.length} 次课</small></h2><a href="#week" data-current-week class="text-link">查看 ${icon('arrow')}</a></div><div class="week-date-range">${dateLabel(week)} — ${dateLabel(addDays(week,6))}</div>
+ <div class="home-layout"><div class="home-primary">${hero(upcoming)}${campusCard()}${todayEvents.length>1?`<section class="today-agenda"><div class="section-heading"><h2>今日安排</h2><span>${todayEvents.length} 次课</span></div>${todayEvents.map(e=>row(e,{compact:true})).join('')}</section>`:''}</div>
+ <div class="home-secondary">${homework.home()}<section class="week-preview"><div class="section-heading"><h2>本周安排<small>${events.length} 次课</small></h2><a href="#week" data-current-week class="text-link">查看 ${icon('arrow')}</a></div><div class="week-date-range">${dateLabel(week)} — ${dateLabel(addDays(week,6))}</div>
  ${days.length?`<div class="weekend-tiles" style="--tile-count:${Math.min(days.length,4)}">${days.map(d=>{const items=events.filter(e=>e.date===d);return `<button class="day-tile ${d===clock.date?'today-tile':''}" data-day="${d}"><span>周${WEEKDAYS[weekday(d)]}</span><strong>${Number(d.slice(-2))}</strong><span class="tile-dots">${items.map(e=>`<i style="background:${theme(e.course_id)[0]}"></i>`).join('')}</span><small>${items.every(e=>e.kind==='online')?'线上':items.length+' 次课'}</small></button>`;}).join('')}</div>`:`<div class="no-week"><p>本周没有已排课程</p></div>`}</section>
- ${standalone()?'':'<button class="install-entry" data-install>添加到手机主屏幕</button>'}</div></div>`;
+ </div></div>`;
 }
 function dayStrip(events,days){return `<div class="day-strip" aria-label="选择日期">${days.map(d=>{const items=events.filter(e=>e.date===d);return `<button class="strip-day ${state.day===d?'selected':''} ${d===clock.date?'is-today':''}" data-filter-day="${d}" aria-pressed="${state.day===d}" aria-label="${dateLabel(d)}，星期${WEEKDAYS[weekday(d)]}，${items.length}次课"><span>${d===clock.date?'今':WEEKDAYS[weekday(d)]}</span><strong>${Number(d.slice(-2))}</strong><span class="strip-dots">${items.map(e=>`<i style="--dot-color:${theme(e.course_id)[0]}"></i>`).join('')}</span></button>`;}).join('')}</div>`;}
 function agenda(events){
@@ -118,25 +123,28 @@ function weekView(){
  const status=campus.length?'本周到校':online.length?'本周仅线上课':practice.length?'本周有实践安排':'本周暂无安排';
  return `<section class="page-intro week-intro"><h1>周课表</h1><div class="view-switch" role="group" aria-label="课表显示方式"><button data-view="grid" aria-pressed="${state.view==='grid'}">课表</button><button data-view="list" aria-pressed="${state.view==='list'}">列表</button></div></section>
  <section class="week-toolbar" aria-label="切换教学周"><div><strong>${dateLabel(state.week)} — ${dateLabel(addDays(state.week,6))}</strong><span>${state.week.slice(0,4)} · 第 ${weekNumber(state.week)} 教学周<span class="week-status">${status}</span></span></div><div class="week-controls"><button class="icon-button" data-week-step="-1" aria-label="上一周" ${state.week<=firstWeek?'disabled':''}>${icon('left')}</button><button class="plain-button" data-this-week aria-label="回到本周">本周</button><button class="icon-button" data-week-step="1" aria-label="下一周" ${state.week>=lastWeek?'disabled':''}>${icon('right')}</button></div></section>
- ${nextVisit?`<button class="campus-shortcut" data-campus="${nextVisit.week}"><span>${campus.length?'下个到校周':'下次到校'} <strong>${smallDate(nextVisit.start)} — ${smallDate(nextVisit.end)}</strong></span>${icon('arrow')}</button>`:''}
+ ${nextVisit?`<button class="campus-shortcut" data-campus="${nextVisit.week}"><span>${campus.length?'下个到校周':'下次到校'} <strong>${smallDate(nextVisit.start)}${nextVisit.start===nextVisit.end?'':' — '+smallDate(nextVisit.end)}</strong></span>${icon('arrow')}</button>`:''}
  ${state.view==='grid'?timetable(events,days):dayStrip(events,days)}
- <div class="week-list-label"><span>${state.day?`周${WEEKDAYS[weekday(state.day)]}的安排`:'整周安排'}<b>${visible.length} 次课</b></span>${state.day?'<button class="filter-pill" data-all-week>显示整周</button>':''}</div>
+ ${state.view==='list'||state.day?`<div class="week-list-label"><span>${state.day?`周${WEEKDAYS[weekday(state.day)]}的安排`:'整周安排'}<b>${visible.length} 次课</b></span>${state.day?'<button class="filter-pill" data-all-week>显示整周</button>':''}</div>`:''}
  ${state.view==='list'||state.day?agenda(visible):''}
  ${online.length?'<p class="recurrence-caption">线上课程时间以当次通知为准</p>':''}
  <button class="semester-jump" data-semester>${icon('calendar')}<span>查看学期到校安排</span>${icon('right')}</button>`;
 }
 function courseListHTML(query=''){
- if(!data.courses.length)return '<div class="search-empty"><h2>还没有课程</h2><p>点击上方“导入课表”，添加自己的课程。</p></div>';
+ if(!data.courses.length)return '<div class="search-empty"><h2>还没有课程</h2><p>可以导入自己的课表，也可以从班级课程中选择正在上的教学班。</p></div>';
 
  const ordered=[...data.courses].sort((a,b)=>{const ea=nextEvent(courseEvents(a.id),clock),eb=nextEvent(courseEvents(b.id),clock);return (ea?ea.date+(ea.start_time||'00:00'):'9999').localeCompare(eb?eb.date+(eb.start_time||'00:00'):'9999');});
- const found=ordered.filter(c=>[c.name,c.teacher,c.location||''].join(' ').toLowerCase().includes(query.trim().toLowerCase()));
- return found.length?found.map(c=>{const events=courseEvents(c.id),next=nextEvent(events,clock),past=events.filter(e=>eventState(e,clock)==='past').length;return `<button class="course-item" style="${style(c.id)}" data-course="${c.id}"><span class="course-monogram">${esc(theme(c.id)[2])}</span><span class="course-body"><span class="course-item-title">${esc(c.name)}</span><span class="course-item-meta">${esc(c.teacher)}<span>·</span>${esc(c.location||(c.delivery_mode==='online'?'线上课程':'地点待通知'))}</span><span class="course-next">${next?`下次 ${dateLabel(next.date)} · ${next.kind==='fieldwork'?'实践调研':(next.start_time||'时间待通知')}`:(c.note?esc(c.note):'暂无后续安排')}</span></span><span class="course-item-tail">${icon('right')}<small>${c.recurrence?'每周二':`${past} / ${events.length}`}</small></span></button>`;}).join(''):'<div class="search-empty"><h2>没有找到这门课</h2><p>试试课程名称、老师姓名或教室。</p></div>';
+ const found=searchCourses(ordered,query);
+ return found.length?found.map(c=>{const events=courseEvents(c.id),next=nextEvent(events,clock),past=events.filter(e=>eventState(e,clock)==='past').length;return `<button class="course-item" style="${style(c.id)}" data-course="${c.id}" aria-label="查看${esc(c.name)}，${esc(courseIdentity(c))}"><span class="course-monogram">${esc(theme(c.id)[2])}</span><span class="course-body"><span class="course-item-title">${esc(c.name)}</span><span class="course-item-meta">${esc(c.teacher)}<span>·</span>${esc(c.location||(c.delivery_mode==='online'?'线上课程':'地点待通知'))}</span>${data.courses.filter(x=>x.name===c.name).length>1?`<span class="course-class-id">教学班 ${esc(c.id)}</span>`:''}<span class="course-next">${next?`下次 ${dateLabel(next.date)} · ${next.kind==='fieldwork'?'实践调研':(next.start_time||'时间待通知')}`:(c.note?esc(c.note):'暂无后续安排')}</span></span><span class="course-item-tail">${icon('right')}<small>${c.recurrence?'每周'+WEEKDAYS[c.recurrence.weekday-1]:`已结束 ${past}/${events.length} 次`}</small></span></button>`;}).join(''):'<div class="search-empty"><h2>没有找到这门课</h2><p>试试课程名称、老师、教室或教学班编号。</p></div>';
 }
 function coursesView(){const completed=fixedEvents.filter(e=>eventState(e,clock)==='past').length;
- return `<section class="page-intro courses-intro"><h1>我的课程</h1><p>${esc(data.term)}<span class="dot-sep">·</span>${data.courses.length} 门课程</p><div class="course-page-actions"><button class="primary-button" data-import>导入课表</button><button class="course-install-button" data-sharing>课表共享</button><button class="course-install-button course-desktop-install" data-install>添加到手机主屏幕</button></div></section><div class="courses-layout"><section class="course-main"><label class="search-box">${icon('search')}<input id="course-search" type="search" placeholder="搜索课程、老师或教室" aria-label="搜索课程、老师或教室" value="${esc(state.query)}" autocomplete="off"></label><div id="course-list" class="course-list">${courseListHTML(state.query)}</div></section><div class="course-sidebar">${community.libraryEntry()}<aside class="semester-summary"><div class="eyebrow">线下课程进度</div><div class="summary-numbers"><strong>${completed}<span>/ ${fixedEvents.length}</span></strong><p>已结束的教室课与实践安排</p></div><div class="progress-track" role="progressbar" aria-label="线下课程进度" aria-valuemin="0" aria-valuemax="${fixedEvents.length}" aria-valuenow="${completed}"><i style="width:${(fixedEvents.length?completed/fixedEvents.length*100:0)}%"></i></div><p class="summary-note">${fixedEvents.filter(e=>e.kind==='class').length} 次教室课 · ${fixedEvents.filter(e=>e.kind==='fieldwork').length} 次实践调研</p></aside></div></div>`;
+ return `<section class="page-intro courses-intro"><div><h1>我的课程</h1><p>${data.courses.length} 门课程</p></div><div class="course-page-actions"><button class="primary-button" data-import>导入课表</button><button class="secondary-button" data-library>从班级课程添加</button></div></section>
+ <div class="courses-layout ${data.courses.length?'':'courses-empty-layout'}"><section class="course-main">${data.courses.length?`<label class="search-box">${icon('search')}<input id="course-search" type="search" placeholder="搜索课程、老师、教室或教学班" aria-label="搜索课程、老师、教室或教学班" value="${esc(state.query)}" autocomplete="off"></label>`:''}<div id="course-list" class="course-list">${courseListHTML(state.query)}</div></section>
+ ${data.courses.length?`<div class="course-sidebar">${fixedEvents.length?`<aside class="semester-summary"><h2>学期安排</h2><div class="summary-numbers"><strong>${completed}<span>/ ${fixedEvents.length}</span></strong><p>已结束的线下安排</p></div><div class="progress-track" role="progressbar" aria-label="线下课程进度" aria-valuemin="0" aria-valuemax="${Math.max(1,fixedEvents.length)}" aria-valuenow="${completed}"><i style="width:${(fixedEvents.length?completed/fixedEvents.length*100:0)}%"></i></div><p class="summary-note">${fixedEvents.filter(e=>e.kind==='class').length} 次教室课 · ${fixedEvents.filter(e=>e.kind==='fieldwork').length} 次实践</p></aside>`:''}
+ <div class="course-tools"><button class="secondary-button compact-button" data-sharing>课表共享 ${icon('right')}</button><button class="secondary-button compact-button course-desktop-install" data-install>添加到主屏幕 ${icon('right')}</button></div></div>`:''}</div>`;
 }
 function render(){
- if(!data)return;clock=chinaClock();nav();
+ if(!data)return;const view=captureView($('#main'));clock=chinaClock();nav();
  if(state.route==='ai'){
   // Clock and visibility updates must not reset a connection form or its download guidance.
   if($('#main #ai-connection-panel')?.dataset.owner===String(currentUser?.id))return;
@@ -144,29 +152,62 @@ function render(){
   mountAiConnections({container:$('#ai-connection-panel'),request,getUser:()=>currentUser,showDialog,dialogTop});return;
  }
  $('#main').innerHTML=state.route==='today'?home():state.route==='week'?weekView():state.route==='homework'?homework.page():state.route==='manage'?community.page():coursesView();
+ restoreView($('#main'),view);
 }
 let editorScroll=null;
+let dialogTrail=[],dialogOrigin=null;
 function releaseEditorScroll(){if(editorScroll===null)return;const y=editorScroll;editorScroll=null;document.body.classList.remove('homework-editor-open');document.body.style.removeProperty('--editor-page-top');window.scrollTo(0,y);}
-function showDialog(content,{kind=''}={}){releaseEditorScroll();const editor=kind==='homework-editor';$('#detail-dialog').classList.toggle('homework-editor',editor);$('#detail-dialog').classList.toggle('ai-connection-dialog',kind==='ai-connection');if(editor){editorScroll=window.scrollY;document.body.style.setProperty('--editor-page-top',`${-editorScroll}px`);document.body.classList.add('homework-editor-open');}$('#dialog-body').innerHTML=content;const form=$('#hw-form');if(form)form.dataset.original=JSON.stringify([...new FormData(form)]);if(!$('#detail-dialog').open)$('#detail-dialog').showModal();document.body.classList.add('dialog-open');$('#detail-dialog').scrollTop=0;}
-async function requestDialogClose(){
+function applyDialogKind(kind){
+ releaseEditorScroll();
+ const d=$('#detail-dialog');
+ d.classList.toggle('homework-editor',kind==='homework-editor');
+ d.classList.toggle('ai-connection-dialog',kind==='ai-connection');
+ d.classList.toggle('course-library-dialog',kind==='course-library');
+ d.classList.toggle('workflow-dialog',['course-import','management-flow'].includes(kind));
+ d.classList.toggle('detail-drawer',kind==='detail');
+ d.classList.toggle('reading-dialog',['course-detail','homework-detail'].includes(kind));
+ d.classList.toggle('course-reading-dialog',kind==='course-detail');
+ d.classList.toggle('assignment-reading-dialog',kind==='homework-detail');
+ d.dataset.kind=kind;
+ if(kind==='homework-editor'){editorScroll=window.scrollY;document.body.style.setProperty('--editor-page-top',`${-editorScroll}px`);document.body.classList.add('homework-editor-open');}
+}
+function showDialog(content,{kind='',replace=false}={}){
+ const d=$('#detail-dialog'),body=$('#dialog-body');
+ if(d.open&&!replace)dialogTrail.push({nodes:[...body.childNodes],kind:d.dataset.kind||'',scroll:d.scrollTop,focus:document.activeElement});
+ if(!d.open){dialogTrail=[];dialogOrigin=document.activeElement;}
+ applyDialogKind(kind);body.innerHTML=content;
+ const top=body.querySelector('.dialog-top,.hw-editor-header');
+ if(dialogTrail.length&&top){const back=document.createElement('button');back.type='button';back.className='secondary-button compact-button surface-back';back.dataset.dialogBack='';back.textContent='返回';top.prepend(back);}
+ const form=$('#hw-form');if(form)form.dataset.original=JSON.stringify([...new FormData(form)]);
+ if(!d.open)d.showModal();document.body.classList.add('dialog-open');d.scrollTop=0;
+ const title=body.querySelector('#dialog-title');if(title){title.tabIndex=-1;title.focus({preventScroll:true});}
+}
+async function requestDialogClose(back=false){
  const d=$('#detail-dialog'),form=d.querySelector('#hw-form'),comment=d.querySelector('.hw-comment-form textarea'),importText=d.querySelector('#import-text');
- if(form?.getAttribute('aria-busy')==='true'||d.querySelector('.hw-comment-form[aria-busy="true"]'))return;
+ if(d.querySelector('[aria-busy="true"]'))return;
  const dirty=form?JSON.stringify([...new FormData(form)])!==form.dataset.original:!!comment?.value.trim()||!!importText?.value.trim();
- if(!dirty){d.close();return;}
- const body=d.querySelector('#dialog-body').firstElementChild;
- if(await confirmAction({title:'放弃未保存的内容？',message:comment?'这条留言还没有发表。离开后，内容不会保留。':'本次修改还没有保存。你可以继续编辑，或放弃这次修改。',confirm:'放弃修改',cancel:'继续编辑',danger:true})){
-  if(d.open&&body===d.querySelector('#dialog-body').firstElementChild)d.close();
- }
+ const content=d.querySelector('#dialog-body').firstElementChild;
+ if(dirty&&!await confirmAction({title:'放弃未保存的内容？',message:comment?'这条留言还没有发表。离开后，内容不会保留。':'本次修改还没有保存。你可以继续编辑，或放弃这次修改。',confirm:'放弃修改',cancel:'继续编辑',danger:true}))return;
+ if(!d.open||content!==d.querySelector('#dialog-body').firstElementChild)return;
+ if(back&&dialogTrail.length){
+  const previous=dialogTrail.pop();applyDialogKind(previous.kind);$('#dialog-body').replaceChildren(...previous.nodes);d.scrollTop=previous.scroll;previous.focus?.focus({preventScroll:true});d.querySelector('.hw-discussion')?.dispatchEvent(new Event('kejian-resume'));
+ }else d.close();
 }
 const dialogTop=label=>`<div class="dialog-top"><span class="eyebrow">${label}</span><button class="icon-button" data-close aria-label="关闭详情">${icon('close')}</button></div>`;
-function openCourse(id,eventId=null){
+function openCourse(id,eventId=null,replace=false){
  const c=courseById(id);if(!c)return;modalCourse=id;
- const events=courseEvents(id),selected=events.find(e=>e.id===eventId)||nextEvent(events,clock)||events.at(-1);
- showDialog(`<div class="course-detail" style="${style(id)}">${dialogTop('课程详情')}<div class="detail-heading"><span class="course-monogram">${esc(theme(id)[2])}</span><h2 id="dialog-title">${esc(c.name)}</h2><p>${esc(c.teacher||'教师待通知')}${Number.isFinite(c.credits)?`<span>·</span>${c.credits} 学分`:''}${c.recurrence?'<span class="online-tag">线上课</span>':''}</p></div>
- ${selected?`<section class="selected-lesson ${selected.kind==='fieldwork'?'practice-panel':''}"><div class="selected-top"><span>${dateLabel(selected.date,true)} · 周${WEEKDAYS[weekday(selected.date)]}</span><small>${selected.recurring?'每周安排':sequence(selected)}</small></div><strong class="${!selected.end_time?'pending-time':''}">${timeText(selected)}</strong><p>${icon(selected.kind==='online'?'video':selected.kind==='fieldwork'?'leaf':'pin')}${esc(placeText(selected))}</p>${selected.kind==='fieldwork'?'<span class="practice-explanation">不在教室授课。具体实践时间和地点待通知。</span>':''}${selected.kind==='online'?'<span class="practice-explanation">具体时间以当次通知为准；上课入口待通知。</span>':''}</section>`:''}
- ${c.recurrence?`<section class="recurrence-note"><strong>每周${WEEKDAYS[c.recurrence.weekday-1]} ${esc(c.recurrence.start_time||'时间待定')}</strong><p>从 ${dateLabel(c.recurrence.starts_on,true)} 开始。结束日期未定，本学期内暂按每周规则展示。</p></section>`:''}
- ${homework.courseSection(id)}<section class="meeting-section"><div class="section-heading"><h3>${c.recurrence?'按周展示的日期':'全部上课日期'}</h3><span>${c.recurrence?'结束日期待定':events.length+' 次安排'}</span></div><div class="meeting-grid">${events.map(e=>`<button class="meeting-date ${selected?.id===e.id?'chosen':''} ${eventState(e,clock)==='past'?'past':''}" data-meeting="${e.id}" aria-pressed="${selected?.id===e.id}"><span><strong>${smallDate(e.date)}</strong><small>${e.date.slice(0,4)} · 周${WEEKDAYS[weekday(e.date)]}</small></span><span class="meeting-label">${e.kind==='fieldwork'?icon('leaf')+'实践':eventState(e,clock)==='past'?icon('check'):(e.start_time||'待通知')}</span></button>`).join('')}</div></section>
- <details class="source-note"><summary>查看课程原始备注<span>来自「我的课程」</span></summary><p>${esc(c.raw_remark)}</p>${c.recurrence?`<p>${esc(c.recurrence.source)}</p>`:''}</details><p class="detail-footnote">${c.recurrence?'课程时间以你补充的安排为准。':'日期采用课程备注，钟点按非全日制校历校正。'}</p><div class="course-remove-actions"><button class="course-remove-button" id="remove-personal-course">移出我的课表</button><small>仅影响自己的课表，个人作业保留。</small><p class="panel-error" role="alert"></p></div></div>`);
+ const events=courseEvents(id),next=nextEvent(events,clock),selected=events.find(e=>e.id===eventId)||next||events.at(-1);
+ const selectedState=selected?eventState(selected,clock):'',selectedLabel=selectedState==='past'?'已结束的课程':selected?.date===clock.date?'今天的课程':selected?.id===next?.id?'下次上课':'课程安排';
+ const desktop=window.matchMedia('(min-width:1024px)').matches;
+ const datesOpen=replace?($('#detail-dialog .course-dates-panel')?.open??desktop):desktop;
+ const dateList=events.map(e=>`<button class="meeting-date ${selected?.id===e.id?'chosen':''} ${eventState(e,clock)==='past'?'past':''}" data-meeting="${e.id}" aria-pressed="${selected?.id===e.id}"><span><strong>${smallDate(e.date)}</strong><small>${e.date.slice(0,4)} · 周${WEEKDAYS[weekday(e.date)]}</small></span><span class="meeting-label">${e.kind==='fieldwork'?'实践':eventState(e,clock)==='past'?'已结束':(e.start_time||'待通知')}</span></button>`).join('');
+ showDialog(`<div class="course-detail reading-page" data-course-detail="${esc(id)}" style="${style(id)}">${dialogTop('课程详情')}
+ <header class="reading-heading course-reading-heading"><h2 id="dialog-title" class="reading-title">${esc(c.name)}</h2><p class="course-reading-meta"><span>${esc(c.teacher||'教师待通知')}</span>${Number.isFinite(c.credits)?`<span>${c.credits} 学分</span>`:''}${c.recurrence?'<span>线上课</span>':''}</p>${c.id.startsWith('import-')?'':`<p class="reading-class-id">教学班 ${esc(c.id)}</p>`}</header>
+ <div class="course-reading-layout">
+ ${selected?`<section class="course-session-card"><div class="course-session-caption"><span>${selectedLabel}</span><small>${selected.recurring?'每周安排':sequence(selected)}</small></div><p class="course-session-date">${dateLabel(selected.date,true)}<span>周${WEEKDAYS[weekday(selected.date)]}</span></p><strong class="course-session-time">${selected.start_time&&!selected.end_time?esc(selected.start_time)+'<span>开始 · 结束待定</span>':timeText(selected)}</strong><p class="course-session-place">${icon(selected.kind==='online'?'video':selected.kind==='fieldwork'?'leaf':'pin')}<span>${esc(placeText(selected))}</span></p>${selected.kind==='fieldwork'?'<p class="course-session-note">不在教室授课，具体时间和地点待通知。</p>':''}${selected.kind==='online'?'<p class="course-session-note">时间以当次通知为准，上课入口待通知。</p>':''}</section>`:'<p class="hw-muted">暂未安排上课时间。</p>'}
+ <details class="course-dates-panel" ${datesOpen?'open':''}><summary><span>${c.recurrence?'按周展示的日期':'全部上课日期'}<small>${c.recurrence?'结束日期'+(c.recurrence.until?dateLabel(c.recurrence.until,true):'待定'):events.length+' 次安排'}</small></span>${icon('down')}</summary><div class="meeting-grid">${dateList||'<p class="hw-muted">暂无上课日期。</p>'}</div>${c.recurrence?`<p class="course-recurrence-note">每周${WEEKDAYS[c.recurrence.weekday-1]} ${esc(c.recurrence.start_time||'时间待定')}，${dateLabel(c.recurrence.starts_on,true)}起。${c.recurrence.until?'安排至 '+dateLabel(c.recurrence.until,true)+'。':'结束日期未定，暂按每周规则展示。'}</p>`:''}</details>
+ ${homework.courseSection(id)}<div class="course-reading-settings"><details class="source-note course-source-panel"><summary>课程备注</summary><p>${esc(c.raw_remark||'暂无备注')}</p>${c.recurrence?`<p>${esc(c.recurrence.source||'')}</p>`:''}</details>
+ <details class="course-settings-panel"><summary>课程设置${icon('down')}</summary><div class="course-remove-actions"><button class="secondary-button compact-button is-danger" id="remove-personal-course">移出我的课表</button><small>仅影响自己的课表，个人作业保留。</small><p class="panel-error" role="alert"></p></div></details></div></div></div>`,{kind:'course-detail',replace});
  $('#remove-personal-course').onclick=()=>removePersonalCourse(c);
 }
 async function removePersonalCourse(course){
@@ -196,7 +237,7 @@ async function removePersonalCourse(course){
  finally{if(button.isConnected){button.disabled=false;button.textContent='移出我的课表';}}
 }
 function openMore(){
- showDialog(`<div class="account-detail more-detail">${dialogTop('导航')}<h2 id="dialog-title">更多</h2><div class="account-settings-list"><button class="account-setting-row" data-connect-ai><span><strong>连接 AI</strong><small>让常用助手帮你查课、处理作业</small></span><span aria-hidden="true">›</span></button>${community.canManage()?'<button class="account-setting-row" data-management><span><strong>课程管理</strong><small>维护你负责的教学班</small></span><span aria-hidden="true">›</span></button>':''}<button class="account-setting-row" data-install><span><strong>添加到手机主屏幕</strong><small>从桌面直接打开课间</small></span><span aria-hidden="true">›</span></button></div></div>`);
+ showDialog(`<div class="account-detail more-detail">${dialogTop('导航')}<h2 id="dialog-title">更多</h2><div class="account-settings-list"><button class="account-setting-row" data-connect-ai><span><strong>连接 AI</strong><small>让常用助手帮你查课、处理作业</small></span><span aria-hidden="true">›</span></button>${community.canManage()?'<button class="account-setting-row" data-management><span><strong>课程管理</strong><small>维护你负责的教学班</small></span><span aria-hidden="true">›</span></button>':''}${currentUser?.pushEnabled?'<a class="account-setting-row" href="./notifications-reminders.html"><span><strong>消息提醒</strong><small>课前、作业发布与截止提醒</small></span><span aria-hidden="true">›</span></a>':''}<button class="account-setting-row" data-install><span><strong>添加到手机主屏幕</strong><small>从桌面直接打开课间</small></span><span aria-hidden="true">›</span></button></div></div>`);
 }
 function openSemester(){if(!data)return;modalCourse=null;const visits=campusVisits(data.events);showDialog(`<div class="semester-detail">${dialogTop('学期总览')}<h2 id="dialog-title">到校安排</h2><p class="semester-subtitle">${esc(data.term)} · ${visits.length} 次集中到校</p><div class="semester-week-list">${visits.map((v,i)=>`<button data-semester-week="${v.week}"><span class="week-index">${String(i+1).padStart(2,'0')}</span><span><strong>${rangeText(v)}</strong><small>第 ${weekNumber(v.week)} 教学周 · ${v.events.length} 次教室课${v.start.startsWith('2027')?' · 2027年':''}</small></span>${icon('right')}</button>`).join('')}</div><p class="semester-note">只统计在教室上课的日期；实践调研另见周课表。</p></div>`);}
 async function copyInstallLink(){
@@ -223,7 +264,8 @@ document.addEventListener('click',e=>{
 
  if(target.dataset.event){const event=data.events.find(x=>x.id===target.dataset.event);if(event)openCourse(event.course_id,event.id);}
  else if(target.dataset.course)openCourse(target.dataset.course);
- else if(target.dataset.meeting)openCourse(modalCourse,target.dataset.meeting);
+ else if(target.dataset.meeting)openCourse(target.closest('[data-course-detail]')?.dataset.courseDetail||modalCourse,target.dataset.meeting,true);
+ else if(target.hasAttribute('data-dialog-back'))requestDialogClose(true);
  else if(target.hasAttribute('data-close'))requestDialogClose();
  else if(target.hasAttribute('data-semester')||target.id==='semester-button')openSemester();
  else if(target.dataset.view){state.view=target.dataset.view;try{localStorage.setItem('kejian.week-view',state.view);}catch{}render();$(`[data-view="${state.view}"]`)?.focus({preventScroll:true});}
@@ -237,40 +279,88 @@ document.addEventListener('click',e=>{
 });
 document.addEventListener('input',e=>{if(e.target.id==='course-search'){state.query=e.target.value;$('#course-list').innerHTML=courseListHTML(state.query);}});
 $('#detail-dialog').addEventListener('cancel',e=>{e.preventDefault();const picker=$('#detail-dialog .hw-picker[open]');if(picker){picker.open=false;picker.querySelector('summary').focus();return;}requestDialogClose();});
-$('#detail-dialog').addEventListener('close',()=>{document.body.classList.remove('dialog-open');$('#detail-dialog').classList.remove('homework-editor','ai-connection-dialog');releaseEditorScroll();});
+$('#detail-dialog').addEventListener('close',()=>{document.body.classList.remove('dialog-open');$('#detail-dialog').classList.remove('homework-editor','ai-connection-dialog','course-library-dialog');releaseEditorScroll();dialogTrail=[];const origin=dialogOrigin;dialogOrigin=null;origin?.focus({preventScroll:true});});
 $('#detail-dialog').addEventListener('click',e=>{if(e.target===$('#detail-dialog')){const r=e.target.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)requestDialogClose();}});
 window.addEventListener('hashchange',()=>{render();window.scrollTo({top:0,behavior:'instant'});});
-document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!$('#detail-dialog').open)render();});
-setInterval(()=>{const current=chinaClock();if((current.date!==clock.date||current.time!==clock.time)&&!$('#detail-dialog').open&&document.activeElement?.tagName!=='INPUT')render();},30000);
+function refreshClock(){if(document.hidden||$('#detail-dialog').open||document.activeElement?.matches('input,textarea,summary,button,[contenteditable=true]'))return;const current=chinaClock();if(current.date!==clock.date||current.time!==clock.time)render();}
+document.addEventListener('visibilitychange',refreshClock);
+setInterval(refreshClock,30000);
 const homework=createHomework({courses:()=>data?.courses||[],owner:()=>data?.owner,render,showDialog,dialogTop,goRoute});
 const community=createCommunity({getData:()=>data,showDialog,dialogTop,reload:load,goRoute,render});
 let loadSerial=0;
 async function load(){const serial=++loadSerial;try{
  const user=await checkSession();if(serial!==loadSerial)return;
  if(!user){data=null;homework.clear();showAuth();return;}
- const res=await fetch('./api/schedule',{cache:'no-store',credentials:'same-origin'});
- if(res.status===401){data=null;homework.clear();showAuth();return;}
- if(!res.ok)throw Error('课表暂时无法加载');const source=await res.json();if(serial!==loadSerial)return;
+ const source=await request('schedule');if(serial!==loadSerial)return;
  if(source.owner!==user.id||!Array.isArray(source.courses)||!Array.isArray(source.events))throw Error('课表格式不正确');
  document.body.classList.remove('signed-out');document.querySelector('.bottom-nav').hidden=false;
  document.querySelector('[data-management]').hidden=!community.canManage();
- $('#account-button').textContent=user.name.slice(-2);$('#account-button').setAttribute('aria-label',user.name+'，账号设置');$('#account-button').title=user.name;
- const shortTerm=source.term.match(/(20\d{2}).*(秋冬|春夏)/);$('#semester-button').querySelector('.semester-label').textContent=shortTerm?shortTerm[1]+' '+shortTerm[2]:source.term;$('#semester-button').title=source.term;
- fixedEvents=source.events.filter(e=>e.kind!=='online');data={...source,events:expandEvents(source)};
+ document.querySelector('[data-reminders-nav]').hidden=!(user.pushEnabled);
+ $('#account-button').textContent=Array.from(user.name.trim()).slice(-2).join('');$('#account-button').setAttribute('aria-label',user.name+'，账号设置');$('#account-button').title=user.name;
+ const shortTerm=source.term.match(/(20\d{2}).*(秋冬|春夏)/);$('#semester-button').querySelector('.semester-label').textContent=shortTerm?shortTerm[1]+' '+shortTerm[2]:source.term;$('#semester-button').title='查看学期到校安排';$('#semester-button').setAttribute('aria-label',source.term+'，查看到校安排');
+ fixedEvents=source.events.filter(e=>e.kind!=='online');data={...source,events:expandEvents(source)};scheduleSync.seed(source);
  firstWeek=monday(source.display_range.start);lastWeek=monday(source.display_range.end);state.week=monday(clock.date);state.day=null;state.query='';
  await Promise.all([homework.refresh(),community.refresh()]);if(serial!==loadSerial)return;
  if(routeFromHash(location.hash)==='manage'&&community.canManage())await community.manager();
  render();
+ updates.check();
+ const params=new URLSearchParams(location.search),target=notificationTarget(location.search,user.id);
+ if(params.has('noticeOwner')){for(const key of ['noticeOwner','homework','event'])params.delete(key);history.replaceState(null,'',location.pathname+(params.size?'?'+params.toString():'')+location.hash);}
+ if(target.kind==='wrong-account'){
+  showDialog(`<div class="account-detail">${dialogTop('消息提醒')}<h2 id="dialog-title">请核对当前账号</h2><p>这条提醒属于另一个账号。请切换到对应账号后，再查看自己的课程或作业。</p><button class="primary-button" data-close>返回当前课间</button></div>`);return;
+ }
+ if(target.kind==='homework'){
+  goRoute('homework');
+  if(!homework.openNotification(target.id))showDialog(`<div class="account-detail">${dialogTop('消息提醒')}<h2 id="dialog-title">作业信息已更新</h2><p>这项作业可能已撤回，或你已不在对应教学班。请以当前作业列表为准。</p><button class="primary-button" data-close>查看作业列表</button></div>`);
+  return;
+ }
+ const event=target.kind==='event'?data.events.find(e=>e.id===target.id):null,day=params.get('day');
+ if(event){openCourse(event.course_id,event.id);return;}
+ if(target.kind==='event'||target.kind==='unavailable'){
+  showDialog(`<div class="account-detail">${dialogTop('消息提醒')}<h2 id="dialog-title">课程安排已更新</h2><p>原安排已不在当前课表中，请查看最新课程。</p><button class="primary-button" data-close>查看当前课表</button></div>`);return;
+ }
  if(!source.courses.length&&state.route!=='ai'){goRoute('courses');return;}
- const params=new URLSearchParams(location.search);const event=data.events.find(e=>e.id===params.get('event'));const day=params.get('day');
- if(event)openCourse(event.course_id,event.id);else if(day&&/^\d{4}-\d{2}-\d{2}$/.test(day)&&day>=source.display_range.start&&day<=source.display_range.end)goWeek(day,true);
+ if(day&&/^\d{4}-\d{2}-\d{2}$/.test(day)&&day>=source.display_range.start&&day<=source.display_range.end)goWeek(day,true);
  }catch(e){if(serial!==loadSerial)return;$('#main').innerHTML='<div class="empty-state error-state"><h1>暂时没能加载</h1><p>请检查连接后再试一次。</p><button class="primary-button" id="retry-load">重新加载</button></div>';$('#retry-load').onclick=load;}}
-function clearPersonal(){loadSerial++;data=null;fixedEvents=[];modalCourse=null;state.query='';state.day=null;homework.clear();community.clear();$('#detail-dialog').close();$('#dialog-body').replaceChildren();document.querySelector('#hw-toast').hidden=true;showAuth();}
+function clearPersonal(){identityFlight=null;scheduleSync.clear();routeScroll.clear();loadSerial++;data=null;fixedEvents=[];modalCourse=null;state.query='';state.day=null;homework.clear();community.clear();$('#detail-dialog').close();$('#dialog-body').replaceChildren();document.querySelector('#hw-toast').hidden=true;showAuth();}
 document.addEventListener('kejian-signed-out',clearPersonal);
 document.addEventListener('kejian-signed-in',load);
 window.addEventListener('pageshow',()=>{if(data)checkIdentity();});
-async function checkIdentity(){document.body.classList.add('checking-identity');try{const user=await checkSession();if(data&&user?.id!==data.owner){clearPersonal();if(user)await load();}}catch{clearPersonal();const note=document.querySelector('.account-error');if(note)note.textContent='连接暂时不可用，请恢复网络后登录。';}finally{document.body.classList.remove('checking-identity');}}
+const scheduleSync=createScheduleSync({
+ owner:()=>currentUser?.id===data?.owner?data?.owner:null,
+ blocked:()=>document.hidden||$('#detail-dialog').open||document.activeElement?.matches('input,textarea,[contenteditable=true]'),
+ read:()=>request('schedule'),
+ apply:source=>{
+  fixedEvents=source.events.filter(e=>e.kind!=='online');data={...source,events:expandEvents(source)};
+  firstWeek=monday(source.display_range.start);lastWeek=monday(source.display_range.end);
+  if(state.week<firstWeek)state.week=firstWeek;else if(state.week>lastWeek)state.week=lastWeek;
+  const serial=loadSerial,member=source.owner;
+  render();
+  Promise.all([homework.refresh(),community.refresh()]).then(()=>{
+   if(serial===loadSerial&&data?.owner===member&&!$('#detail-dialog').open&&!document.activeElement?.matches('input,textarea,[contenteditable=true]'))render();
+  }).catch(()=>{});
+ },
+});
+let identityFlight=null;
+function checkIdentity(){
+ if(identityFlight)return identityFlight;
+ const serial=loadSerial;
+ const task=(async()=>{
+  try{
+   const user=await checkSession();if(serial!==loadSerial)return;
+   if(data&&user?.id!==data.owner){clearPersonal();if(user)await load();}
+   else if(data)await scheduleSync.refresh();
+  }catch{
+   // A failed network read is not evidence of an expired session. Keep drafts.
+  }finally{document.body.classList.remove('checking-identity');}
+ })();
+ identityFlight=task;task.finally(()=>{if(identityFlight===task)identityFlight=null;});return task;
+}
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&data)checkIdentity();});
+window.addEventListener('online',()=>{if(data)checkIdentity();else if(currentUser)load();});
+$('#detail-dialog').addEventListener('close',()=>{if(data&&!document.hidden)scheduleSync.refresh().catch(()=>{});});
+setInterval(()=>{if(data&&!document.hidden)checkIdentity();},60000);
+const updates=mountUpdateNotice({request,getUser:()=>data?.owner===currentUser?.id?currentUser:null,blocked:()=>$('#detail-dialog').open||!!document.activeElement?.matches('input,textarea,[contenteditable=true]')});
 watchViewport();
 load();
 

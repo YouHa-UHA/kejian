@@ -1,0 +1,445 @@
+/* Shared visual primitives. Feature files own layout, not new control styles. */
+:root {
+ --paper:#f7f8fa; --surface:#fff; --ink:#293241; --muted:#657185;
+ --line:#e1e6ee; --primary:#4167ad; --soft:#edf2fb;
+ --radius:18px; --control-radius:12px; --control-border:#d7dfea;
+ --type-title:28px; --type-section:17px; --type-body:15px; --type-caption:13px;
+ --space-1:4px; --space-2:8px; --space-3:12px; --space-4:16px; --space-6:24px; --space-8:32px;
+ --control-height:46px; --danger:#a33b45; --focus:#7195d04d;
+}
+body {font-size:var(--type-body);color:var(--ink);line-height:1.65}
+h1,h2,h3,strong {text-wrap:pretty}
+button,input,textarea,summary {font-family:inherit;-webkit-tap-highlight-color:transparent}
+button {touch-action:manipulation}
+:is(.primary-button,.secondary-button,.danger-button) {
+ display:inline-flex;align-items:center;justify-content:center;gap:8px;
+ min-height:var(--control-height);border:1px solid transparent;border-radius:var(--control-radius);
+ padding:11px 18px;font-size:14px;font-weight:550;line-height:1.5;text-align:center;
+ transition:background .15s,border-color .15s,box-shadow .15s;
+}
+.primary-button {background:var(--primary);color:#fff}
+.secondary-button {background:var(--surface);border-color:var(--control-border);color:#455a78}
+.danger-button {background:var(--danger);color:white}
+.secondary-button.is-danger {color:var(--danger);border-color:#e5cdd1;background:#fff}
+:is(.primary-button,.secondary-button,.danger-button).compact-button {min-height:44px;padding:9px 13px;font-size:13px}
+button:disabled {cursor:default;opacity:.5}
+:where(button,a,summary,input,textarea):focus-visible {outline:3px solid var(--focus);outline-offset:3px}
+:where(h1,h2,h3)[tabindex="-1"]:focus {outline:none}
+:where(input,textarea)[aria-invalid="true"] {border-color:var(--danger)!important}
+@media(hover:hover) {
+ .primary-button:hover:not(:disabled) {background:#355b9f;filter:none}
+ .secondary-button:hover:not(:disabled) {background:#f1f4f9;border-color:#b9c9e0;filter:none}
+ .danger-button:hover:not(:disabled) {background:#8b303b;filter:none}
+ .secondary-button.is-danger:hover:not(:disabled) {background:#fff2f3;border-color:#d9b8be}
+}
+.icon-button {min-width:44px;min-height:44px;border-radius:12px;color:#5b6b81}
+.icon-button:hover {background:#f0f3f8}
+.page-intro h1 {font-size:var(--type-title);line-height:1.4;font-weight:650}
+.page-intro {padding-block:30px 24px}
+.section-heading {flex-wrap:wrap;gap:12px}
+.section-heading :is(h2,h3) {font-size:var(--type-section)}
+.page-intro>div>p,.page-intro>p {font-size:14px;line-height:1.6}
+.page-intro :is(.primary-button,.secondary-button) {min-height:46px;font-size:14px}
+/* Read the task first. Its editing surface uses the same header/footer as every form. */
+.hw-group+.hw-group {margin-top:30px}
+.hw-group-heading {display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--line)}
+.hw-group-heading h2 {font-size:14px;font-weight:600}
+.hw-group-heading>span {font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.is-overdue,.hw-group-heading.is-overdue h2 {color:var(--danger)}
+.hw-group .hw-row {padding-block:20px}
+.hw-title-line {align-items:center}
+.hw-check {min-width:44px;min-height:44px}
+.hw-check>span {width:19px;height:19px;border:1.5px solid #aebdd1;border-radius:6px}
+.hw-detail-deadline {padding:16px 18px;margin:22px 0;background:#f3f6fb;border:1px solid var(--line);border-radius:12px;display:flex;flex-direction:column;gap:4px}
+.hw-detail-deadline>span {font-size:12px;color:var(--muted)}
+.hw-detail-deadline>strong {font-size:17px;font-weight:550}
+.hw-detail-deadline.is-overdue {background:#fff7f7;border-color:#f0dfe2}
+.hw-detail-deadline.is-overdue>span {color:var(--danger)}
+.hw-requirements-section {margin-top:26px}
+.hw-requirements-section .hw-requirements {padding:0;border:0;border-radius:0;background:transparent;font-size:16px;line-height:1.9;white-space:pre-wrap;overflow-wrap:anywhere}
+.hw-shared-actions {display:flex;flex-wrap:wrap;gap:10px;margin-top:24px}
+.hw-shared-actions>button {flex:1;min-width:130px;margin:0}
+.detail-privacy {font-size:12px;color:var(--muted);margin-top:12px}
+.hw-discussion {margin-top:32px;padding-top:26px;border-top:1px solid var(--line)}
+.hw-comment-form {padding:16px;background:#f7f9fc;border:1px solid var(--line);border-radius:14px}
+.hw-comment-form textarea {background:white;border-radius:10px;font-size:16px;min-height:100px}
+.hw-comment-form label {font-size:14px}
+.hw-comment footer {gap:8px}
+.hw-comment footer .compact-button {min-height:44px}
+/* One selection surface, with usable searching and one selected state. */
+.hw-picker>summary {list-style:none;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:50px;border:1px solid var(--control-border);border-radius:var(--control-radius);background:var(--surface);padding:11px 14px}
+.hw-picker>summary::-webkit-details-marker {display:none}
+.hw-picker[open]>summary {border-color:#92acd3;box-shadow:0 0 0 3px #7195d019}
+.hw-picker-panel {background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:8px;box-shadow:0 12px 32px #2831411a}
+.hw-picker .hw-picker-options {max-height:min(340px,45dvh);overflow:auto;overscroll-behavior:contain}
+.hw-picker-options>button {min-height:48px;border-radius:9px;padding:10px 12px;gap:10px;display:flex;align-items:center;text-align:left;width:100%;color:var(--ink)}
+.hw-picker-options>button[aria-pressed=true] {background:var(--soft);color:var(--primary)}
+.hw-picker-options>button[hidden],.picker-empty[hidden] {display:none}
+.picker-search {display:block;margin:0!important;padding:4px 4px 8px;font-size:14px}
+.picker-search input,.hw-editor .picker-search input {width:100%;min-height:44px;height:44px;border:1px solid var(--line);background:#f6f8fb;border-radius:9px;padding:10px;font-size:16px;margin:0}
+.picker-empty {font-size:14px;padding:14px;color:var(--muted)}
+.hw-picker-chevron {flex-shrink:0;width:18px;height:18px;align-self:center}
+.hw-editor .hw-deadline {display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);align-items:start;gap:14px}
+.hw-deadline :is(.hw-course-field,.hw-time-field) {margin:0;min-width:0}
+.hw-deadline :is(#hw-deadline-label,#hw-time-label) {display:block;height:24px;line-height:24px;margin:0 0 8px}
+.hw-editor .hw-deadline :is(.hw-picker>summary,.hw-time-control) {box-sizing:border-box;height:50px;min-height:50px;margin:0;border:1px solid var(--control-border);border-radius:var(--control-radius)}
+.hw-time-control {display:flex;align-items:center;padding:4px 8px;gap:4px;background:var(--surface)}
+.hw-editor .hw-time-control input {border:0;box-shadow:none;background:transparent;height:40px;min-height:40px;min-width:0;width:46px;flex:1;margin:0;padding:4px;text-align:center;font-size:18px;border-radius:6px}
+.hw-time-control input:focus-visible {outline:2px solid var(--focus);outline-offset:0}
+.hw-time-control button {flex:none;margin:0;min-height:40px;padding:4px 8px;font-size:12px;color:var(--primary);border-radius:6px}
+.hw-deadline #hw-time-help:empty,.hw-deadline .field-error:empty {display:none}
+.hw-deadline-help {margin-top:8px;font-size:12px}
+.hw-editor label:has(>input:not([type=hidden])),.hw-editor label:has(>textarea) {display:block}
+.hw-editor :is(input[name=title],textarea[name=notes]) {width:100%;margin-top:8px;border:1px solid var(--control-border);border-radius:var(--control-radius);padding:12px 14px;font-size:16px}
+.hw-editor input[name=title] {min-height:50px}
+.hw-editor textarea[name=notes] {min-height:190px;resize:vertical;line-height:1.8}
+.hw-editor .hw-form-content>label,.hw-editor .hw-form-content>.hw-course-field,.hw-editor .hw-form-content>.hw-deadline {margin-top:22px}
+.hw-editor-footer {border-top:1px solid var(--line);background:var(--surface)}
+.hw-editor-footer .hw-save {width:100%;margin:0}
+.hw-form-error:empty {display:none}
+.hw-form-error:not(:empty) {margin:0 0 12px}
+/* Back restores the previous content and scroll position instead of rebuilding it. */
+.dialog-top,.hw-editor-header {gap:12px}
+.dialog-top>.surface-back {margin-right:auto}
+.dialog-top:has(.surface-back)>.eyebrow {display:none}
+.hw-editor-header>.surface-back {flex:none}
+.hw-editor-header>h2 {flex:1;min-width:0;font-size:22px}
+.surface-back {min-width:64px}
+.course-class-id {display:block;color:var(--muted);font-size:12px;margin-top:4px}
+.course-item-tail small {font-size:11px}
+.selected-lesson {border-radius:14px}
+.detail-heading .course-monogram {width:42px;height:42px;font-size:22px;margin-bottom:16px}
+.detail-heading h2 {font-size:26px;line-height:1.5;margin-top:0}
+.course-detail .selected-lesson {margin-top:24px;padding:22px}
+.course-detail .selected-lesson>strong {font-size:25px;line-height:1.5}
+.semester-button .tiny-chevron {width:17px;height:17px}
+/* Management emphasizes the class one is responsible for, followed by tools. */
+.management-course {background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:24px}
+.management-course-top {margin-bottom:8px}
+.management-course h3 {font-size:19px}
+.management-course .management-homework {width:100%;margin-top:20px}
+.management-tools {margin-top:28px}
+.management-tool-row {padding-block:20px}
+.management-tool-row .secondary-button {flex-shrink:0}
+.member-picker input[type=checkbox],.import-course-choice input[type=checkbox],.import-mode input[type=radio],.import-decisions input[type=radio] {appearance:none;-webkit-appearance:none;width:22px;height:22px;min-width:22px;margin:0;border:1.5px solid #aebbd0;border-radius:6px;background:white;display:inline-grid;place-content:center;align-self:center}
+.member-picker input:checked,.import-course-choice input:checked,.import-mode input:checked,.import-decisions input:checked {background:var(--primary);border-color:var(--primary)}
+.member-picker input:checked:after,.import-course-choice input:checked:after {content:'';width:9px;height:5px;border-left:2px solid white;border-bottom:2px solid white;transform:rotate(-45deg) translateY(-1px)}
+.import-mode input[type=radio],.import-decisions input[type=radio] {border-radius:50%}
+.import-mode input:checked:after,.import-decisions input:checked:after {content:'';width:8px;height:8px;border-radius:50%;background:white}
+.member-picker label,.import-mode label,.import-course-choice {min-height:54px;gap:12px}
+.ai-add-guide {margin:24px 0 32px;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
+.ai-add-guide>summary {padding:16px 20px;color:var(--primary);font-size:14px;font-weight:550;cursor:pointer}
+.ai-add-guide .ai-connect-hero {border:0;border-top:1px solid var(--line);border-radius:0 0 14px 14px;background:#f8faff}
+.ai-examples {margin-top:28px}
+.ai-connection-list:empty {display:none}
+.testing-banner {font-size:12px;padding:8px 16px;text-align:center;color:#735c31;background:#faf2df;border-bottom:1px solid #eadfc6}
+body[data-environment=testing] .brand small:after {content:' · TEST';color:#9b7636}
+@media(min-width:1024px) {
+ dialog.detail-drawer {position:fixed;inset:16px 16px 16px auto;transform:none;margin:0;width:min(580px,calc(100vw - 320px));max-width:none;height:calc(100dvh - 32px);max-height:none;border:1px solid var(--line);border-radius:20px;padding:0;box-shadow:0 20px 80px #26334b29}
+ dialog.detail-drawer::backdrop {background:#1f2b3a20;backdrop-filter:none}
+ .detail-drawer #dialog-body>.course-detail,.detail-drawer #dialog-body>.hw-detail {padding:28px}
+ .detail-drawer .dialog-top {position:sticky;top:0;z-index:5;background:var(--surface);padding-bottom:12px}
+ .detail-drawer .meeting-grid {grid-template-columns:repeat(2,minmax(0,1fr))}
+ .detail-drawer .hw-course-actions {width:100%;justify-content:flex-start}
+ .detail-drawer .hw-course-actions>button {flex:1}
+ .detail-drawer .hw-row {gap:10px}
+ dialog.homework-editor {width:660px;max-width:calc(100vw - 64px);height:min(850px,calc(100dvh - 48px));max-height:calc(100dvh - 48px)}
+ .home-layout {grid-template-columns:minmax(0,1.12fr) minmax(300px,1fr);align-items:start}
+ .hw-list {background:white;border:1px solid var(--line);border-radius:16px;padding:8px 24px 24px}
+ .hw-toolbar {margin-top:0}
+ .course-main {background:white;border:1px solid var(--line);border-radius:16px;padding:20px 24px}
+ .course-item {padding-block:22px}
+ .course-sidebar {position:sticky;top:24px;align-self:start}
+}
+@media(max-width:1023px) {
+ :where(input:not([type=checkbox],[type=radio],[type=hidden]),textarea) {font-size:16px}
+ dialog.detail-drawer {max-height:calc(var(--visible-height,100dvh) - 24px);width:min(620px,calc(100vw - 24px));margin:auto;padding:0}
+ .detail-drawer #dialog-body>.course-detail,.detail-drawer #dialog-body>.hw-detail {padding:24px}
+ .hw-picker-panel {max-width:calc(100vw - 48px)}
+}
+@media(max-width:639px) {
+ .page-intro {padding-block:24px 20px}
+ .page-intro h1 {font-size:27px}
+ .hw-group+.hw-group {margin-top:22px}
+ .hw-group .hw-row {padding-block:17px}
+ .hw-check {min-width:36px}
+ .hw-group-heading {padding-top:4px}
+ .hw-toolbar {gap:12px}
+ .course-item-tail small {max-width:72px;text-align:right;white-space:normal}
+ .home-layout {gap:20px}
+ .next-card {padding:22px;border-radius:18px}
+ .next-top {margin-bottom:18px}
+ .next-divider {margin:18px 0}
+ .next-bottom {margin-top:16px}
+ .week-preview,.hw-preview {padding:18px;border-radius:16px}
+ dialog.detail-drawer,dialog.homework-editor {position:fixed;inset:var(--viewport-top,0px) 0 auto 0;width:100%;max-width:none;height:var(--visible-height,100dvh);max-height:var(--visible-height,100dvh);margin:0;border:0;border-radius:0;padding:0}
+ .detail-drawer #dialog-body>.course-detail,.detail-drawer #dialog-body>.hw-detail {padding:18px 20px max(28px,env(safe-area-inset-bottom))}
+ .detail-drawer .dialog-top {margin-bottom:24px}
+ .hw-editor-header {padding:14px 20px}
+ .hw-editor-header>h2 {font-size:20px}
+ .hw-form-content {padding:0 20px 24px}
+ .hw-editor-footer {padding:12px 20px max(16px,env(safe-area-inset-bottom))}
+ .hw-editor .hw-deadline {gap:12px;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr)}
+ .hw-time-control {padding-inline:4px;gap:0}
+ .hw-time-control button {padding-inline:5px;font-size:12px}
+ .hw-deadline .hw-picker>summary {padding-inline:12px;font-size:15px}
+ .hw-picker .hw-picker-options {max-height:min(280px,40dvh)}
+ .hw-editor :is(input[name=title],textarea[name=notes]) {font-size:16px}
+ .hw-comment-form {padding:14px}
+ .hw-shared-actions>button {min-width:120px}
+ .management-course {padding:20px}
+ .ai-add-guide>summary {padding:16px}
+}
+@media(max-width:359px) {
+ .hw-editor .hw-deadline {grid-template-columns:1fr}
+ .hw-time-control {max-width:none}
+ .page-intro :is(.primary-button,.secondary-button) {font-size:13px;padding-inline:12px}
+}
+@media(prefers-reduced-motion:reduce) {*,*::before,*::after {transition:none!important;animation:none!important}}
+
+.hw-editor .hw-deadline .hw-date-picker {margin:0}
+.hw-date-picker .hw-picker-panel {width:300px;max-width:calc(100vw - 40px)}
+
+/* Detail surfaces: a reading page on phones, a two-column workspace on desktop. */
+dialog.reading-dialog {position:fixed;inset:0;width:min(1080px,calc(100vw - 64px));max-width:none;height:min(860px,calc(100dvh - 56px));max-height:calc(100dvh - 56px);margin:auto;padding:0;border:1px solid var(--line);border-radius:22px;overflow:auto;overscroll-behavior:contain;box-shadow:0 24px 90px #24324b26}
+dialog.reading-dialog::backdrop {background:#202e4140;backdrop-filter:blur(2px)}
+.reading-dialog #dialog-body {min-height:100%}
+.reading-dialog .reading-page {padding:0;min-width:0}
+.reading-dialog .dialog-top {position:sticky;top:0;z-index:6;display:flex;align-items:center;min-height:72px;margin:0;padding:12px 30px;background:#fffffffa;border-bottom:1px solid var(--line);backdrop-filter:blur(14px)}
+.reading-dialog .dialog-top>.eyebrow {font-size:13px;font-weight:500;letter-spacing:0;color:var(--muted)}
+.reading-dialog .dialog-top>.icon-button {margin-left:auto;background:#f3f5f8;border-radius:12px;width:44px;height:44px}
+.reading-heading {padding:28px 32px 26px}
+.reading-page .reading-title {font-size:28px;line-height:1.5;letter-spacing:-.5px;font-weight:650;margin:0;overflow-wrap:anywhere}
+.reading-class-id {font-size:13px;line-height:1.65;color:var(--muted);margin-top:8px;overflow-wrap:anywhere}
+.course-reading-meta {display:flex;align-items:center;gap:8px 18px;flex-wrap:wrap;font-size:15px;color:#536176;margin-top:12px}
+.course-reading-meta>span+span {position:relative}
+.course-reading-meta>span+span:before {content:'·';position:absolute;left:-11px;color:#a0a9b6}
+.course-reading-layout {display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:32px;padding:0 32px 32px;align-items:start}
+.course-reading-main,.course-reading-aside,.assignment-main {min-width:0}
+.course-session-card {background:#f8f9fc;border:1px solid var(--line);border-top:3px solid var(--course-color,var(--primary));border-radius:14px;padding:20px 22px}
+.course-session-caption {display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:13px;color:var(--muted)}
+.course-session-caption>span {color:var(--course-color,var(--primary));font-weight:550}
+.course-session-caption>small {font-size:12px}
+.course-session-date {font-size:17px;font-weight:550;margin-top:18px;line-height:1.7}
+.course-session-date>span {font-size:14px;font-weight:400;color:var(--muted);margin-left:12px}
+.course-session-time {display:block;font-size:27px;font-weight:550;line-height:1.5;letter-spacing:-.5px;margin-top:5px;font-variant-numeric:tabular-nums}
+.course-session-time>span {font-size:15px;letter-spacing:0;font-weight:400;color:var(--muted)}
+.course-session-place {display:flex;align-items:center;gap:9px;font-size:16px;margin-top:16px;line-height:1.6}
+.course-session-place .icon {width:18px;height:18px;color:var(--muted)}
+.course-session-note {font-size:13px;line-height:1.7;color:var(--muted);margin-top:12px}
+.course-reading-layout .hw-course-section {grid-column:1/-1;margin:0}
+.course-reading-layout .hw-course-section>.section-heading {gap:14px;align-items:center}
+.course-reading-layout .hw-course-section h3 {font-size:17px;width:auto}
+.course-reading-layout .hw-course-actions {width:auto;justify-content:flex-start;gap:10px}
+.course-reading-layout .hw-course-actions>button {flex:1;font-size:13px;padding:10px 12px;margin:0}
+.course-reading-layout .hw-row {padding:16px 0;gap:8px}
+.course-reading-layout .hw-title-line>strong {font-size:15px}
+.course-reading-layout .hw-notes {font-size:13px}
+.course-reading-layout .hw-meta {font-size:12px}
+.course-reading-layout .hw-check {width:32px;min-width:32px}
+.course-reading-layout .hw-edit {width:24px}
+.course-dates-panel {border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#fff}
+.course-dates-panel>summary,.course-settings-panel>summary {display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:56px;padding:18px 20px;list-style:none;cursor:pointer}
+.course-dates-panel>summary::-webkit-details-marker,.course-settings-panel>summary::-webkit-details-marker {display:none}
+.course-dates-panel>summary>span {font-size:16px;font-weight:550;min-width:0}
+.course-dates-panel>summary small {display:block;font-size:12px;font-weight:400;color:var(--muted);margin-top:3px}
+.course-dates-panel>summary>.icon,.course-settings-panel>summary>.icon {width:17px;height:17px;color:var(--muted);transition:transform .15s}
+.course-dates-panel[open]>summary>.icon,.course-settings-panel[open]>summary>.icon {transform:rotate(180deg)}
+.course-dates-panel .meeting-grid {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin:0;padding:0 16px 16px}
+.course-dates-panel .meeting-date {display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;gap:8px;min-height:104px;padding:12px;border:1px solid var(--line);border-radius:10px;background:#fff}
+.course-dates-panel .meeting-date strong {font-family:inherit;font-size:20px;font-weight:550;line-height:1.4}
+.course-dates-panel .meeting-date small {font-size:11px;line-height:1.5;margin-top:2px}
+.course-dates-panel .meeting-label {font-size:12px;color:var(--muted)}
+.course-dates-panel .meeting-date.chosen {background:var(--soft);border-color:#92acd3;color:var(--primary)}
+.course-dates-panel .meeting-date.past {opacity:.65}
+.course-recurrence-note {font-size:12px;line-height:1.8;color:var(--muted);padding:0 20px 18px}
+.course-reading-settings {grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:32px;border-top:1px solid var(--line);padding-top:4px}
+.course-reading-settings .course-source-panel {border:0;margin:0;padding:0 4px}
+.course-assignment-list {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 32px;margin-top:14px}
+.course-assignment-list .hw-row {border-bottom:1px solid var(--line)}
+.course-source-panel>summary,.course-settings-panel>summary {font-size:14px;color:var(--muted);min-height:52px}
+.course-source-panel>p {font-size:14px;white-space:pre-wrap;line-height:1.85;margin:6px 0 14px}
+.course-settings-panel {border:0;margin:0}
+.course-settings-panel>summary {padding:14px 4px}
+.course-settings-panel .course-remove-actions {padding:8px 4px 12px;margin:0;border:0}
+.course-settings-panel .course-remove-actions>button {width:auto}
+.course-settings-panel .course-remove-actions>small {text-align:left;margin-top:10px}
+.assignment-reading-dialog #dialog-body {display:flex}
+.reading-dialog .assignment-detail {display:flex;flex-direction:column;min-height:100%;width:100%}
+.assignment-course-line {display:flex;align-items:center;gap:12px;font-size:14px;color:var(--primary);margin-bottom:8px}
+.assignment-state {font-size:12px;color:#516c60;background:#f0f5f2;border-radius:6px;padding:2px 8px}
+.assignment-layout {display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:32px;padding:0 32px 32px;flex:1;align-items:start}
+.assignment-deadline {padding:16px 18px;background:#f5f7fb;border:1px solid var(--line);border-radius:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.assignment-deadline>span {font-size:13px;color:var(--muted)}
+.assignment-deadline>strong {font-size:17px;font-weight:550;font-variant-numeric:tabular-nums}
+.assignment-deadline>small {font-size:12px;margin-left:auto}
+.assignment-deadline.is-overdue {color:var(--danger);border-color:#efdde0;background:#fff8f8}
+.assignment-main .hw-requirements-section {margin-top:26px}
+.assignment-main .hw-requirements-section h3 {font-size:15px;color:#536176;margin:0 0 12px;font-weight:550}
+.assignment-main .hw-requirements {font-size:16px;line-height:1.95;margin:0}
+.assignment-main .hw-publisher {margin:22px 0 0;font-size:12px;color:var(--muted)}
+.assignment-layout>.hw-discussion {border-top:0;border-left:1px solid var(--line);padding:0 0 0 26px;margin:0;min-width:0}
+.assignment-detail .hw-discussion-heading {align-items:center;gap:8px}
+.assignment-detail .hw-discussion-heading h3 {font-size:17px}
+.assignment-detail .hw-discussion-heading>span {font-size:11px;white-space:nowrap}
+.assignment-detail .hw-representatives {font-size:12px;margin-top:8px}
+.assignment-detail .hw-comment-form {background:#f8f9fc;padding:14px;border-radius:12px;margin-top:20px}
+.assignment-detail .hw-comment-form textarea {min-height:110px;font-size:16px;margin:8px 0 0}
+.assignment-detail .hw-comment-footer {margin-top:10px}
+.assignment-detail .hw-comment-footer>button {width:auto;min-width:112px;font-size:13px}
+.assignment-detail .hw-comment {padding:18px 0}
+.assignment-detail .hw-comment p {font-size:14px;line-height:1.85}
+.assignment-detail .hw-comment header {gap:6px;flex-wrap:wrap}
+.assignment-detail .hw-comment header time {font-size:11px}
+.assignment-detail .hw-comment footer {flex-wrap:wrap;gap:6px;margin-top:10px}
+.assignment-detail .hw-comment footer .compact-button {font-size:12px;min-height:40px;padding:7px 10px}
+.reading-actionbar {position:sticky;bottom:0;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 32px;background:#fffffffa;border-top:1px solid var(--line);backdrop-filter:blur(14px)}
+.reading-actionbar .detail-privacy {margin:0;font-size:12px;flex:1}
+.reading-actionbar .hw-shared-actions {margin:0;flex-wrap:nowrap;gap:10px}
+.reading-actionbar .hw-shared-actions>button {flex:none;min-width:144px;margin:0}
+@media(max-width:1023px) {
+ dialog.reading-dialog {width:min(740px,calc(100vw - 32px));height:calc(var(--visible-height,100dvh) - 32px);max-height:calc(var(--visible-height,100dvh) - 32px);inset:calc(var(--viewport-top,0px) + 16px) 0 auto;margin:0 auto}
+ .course-reading-layout,.assignment-layout {grid-template-columns:minmax(0,1fr);gap:24px}
+ .course-assignment-list {grid-template-columns:minmax(0,1fr)}
+ .course-reading-layout .hw-course-actions {width:100%}
+ .course-reading-settings {display:block}
+ .course-settings-panel {border-top:1px solid var(--line)}
+ .course-dates-panel .meeting-grid {grid-template-columns:repeat(3,minmax(0,1fr))}
+ .assignment-layout>.hw-discussion {border-left:0;border-top:1px solid var(--line);padding:24px 0 0}
+ .reading-actionbar {padding-inline:28px}
+}
+@media(max-width:639px) {
+ dialog.reading-dialog {inset:var(--viewport-top,0px) 0 auto;width:100%;max-width:none;height:var(--visible-height,100dvh);max-height:var(--visible-height,100dvh);margin:0;border:0;border-radius:0}
+ .reading-dialog .dialog-top {min-height:64px;padding:10px 20px}
+ .reading-heading {padding:22px 20px 24px}
+ .reading-page .reading-title {font-size:25px;line-height:1.45;letter-spacing:-.3px}
+ .reading-class-id {font-size:12px;line-height:1.7;margin-top:8px}
+ .course-reading-meta {font-size:14px;margin-top:10px}
+ .course-reading-layout,.assignment-layout {padding:0 20px 28px;gap:26px}
+ .course-session-card {padding:18px}
+ .course-session-caption {font-size:12px}
+ .course-session-date {font-size:16px;margin-top:14px}
+ .course-session-date>span {font-size:13px;margin-left:10px}
+ .course-session-time {font-size:25px;margin-top:4px}
+ .course-session-time>span {display:block;font-size:14px;margin-top:3px}
+ .course-session-place {font-size:15px;margin-top:12px}
+ .course-session-note {font-size:12px}
+ .course-reading-layout .hw-course-actions>button {font-size:13px;padding:10px;white-space:normal}
+ .course-reading-layout .hw-course-section {margin:0}
+ .course-dates-panel>summary {padding:15px 17px}
+ .course-dates-panel .meeting-grid {padding:0 12px 12px;gap:8px}
+ .course-dates-panel .meeting-date {padding:10px;min-height:96px}
+ .course-dates-panel .meeting-date strong {font-size:19px}
+ .course-reading-settings .course-source-panel {margin-top:12px}
+ .course-settings-panel {margin-bottom:max(0px,env(safe-area-inset-bottom))}
+ .assignment-course-line {font-size:13px;margin-bottom:8px}
+ .assignment-deadline {padding:14px 16px;gap:5px 12px}
+ .assignment-deadline>span {font-size:12px}
+ .assignment-deadline>strong {font-size:16px}
+ .assignment-main .hw-requirements-section {margin-top:24px}
+ .assignment-main .hw-requirements {font-size:16px;line-height:1.9}
+ .assignment-detail .hw-comment p {font-size:15px}
+ .reading-actionbar {display:flex;flex-direction:column-reverse;gap:8px;align-items:stretch;padding:12px 20px max(12px,env(safe-area-inset-bottom))}
+ .reading-actionbar .hw-shared-actions {display:flex;width:100%;gap:10px}
+ .reading-actionbar .hw-shared-actions>button {min-width:0;flex:1;font-size:14px;padding:11px 10px}
+ .reading-actionbar .detail-privacy {text-align:center;font-size:11px}
+ .keyboard-open .reading-actionbar {position:static}
+}
+
+/* Import and class administration: one task surface, distinct wide/narrow layouts. */
+.flow-empty {padding:28px 0;max-width:620px}
+.flow-empty h2,.flow-empty h3 {font-size:22px;line-height:1.5}
+.flow-empty p {margin:12px 0 22px;color:var(--muted);line-height:1.8}
+.flow-feedback {padding:16px 18px;border:1px solid var(--line);border-radius:12px;background:var(--soft);margin-top:18px}
+.flow-feedback p {margin:0;line-height:1.7;overflow-wrap:anywhere}
+.flow-feedback button {margin-top:12px}
+.flow-error {color:var(--danger);font-size:14px;line-height:1.7;overflow-wrap:anywhere}
+.flow-error:empty {display:none}
+.field-help {font-size:13px;line-height:1.7;color:var(--muted);margin:10px 0}
+dialog.workflow-dialog {width:min(960px,calc(100vw - 48px));max-width:none;max-height:calc(var(--visible-height,100dvh) - 48px);border-radius:20px;padding:28px 32px}
+.workflow-dialog :is(.course-import,.management-detail) {max-width:none;padding:0}
+.workflow-dialog h2 {font-size:27px;line-height:1.4;margin:22px 0 12px;overflow-wrap:anywhere}
+.workflow-dialog .panel-subtitle,.workflow-dialog .import-lead {font-size:15px;line-height:1.8}
+.import-prepare-grid {display:grid;grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);gap:28px;align-items:start}
+.import-prepare-grid>div {min-width:0}
+.import-prepare-grid .import-instruction {display:flex;flex-direction:column;align-items:stretch;gap:16px;margin:0;padding:22px;border:1px solid var(--line);background:var(--soft);border-radius:14px}
+.import-instruction>div {min-width:0;flex:auto}
+.import-instruction strong {font-size:16px;line-height:1.65}
+.import-instruction p {font-size:14px;line-height:1.8;margin-top:8px}
+.import-prepare-grid #copy-import {width:auto;flex:none;align-self:flex-start;min-height:44px;font-size:14px}
+.import-input-label {display:block;font-size:15px;font-weight:600;margin:0 0 10px}
+.import-text-column #import-text {box-sizing:border-box;width:100%;min-height:248px;margin:0;font-size:16px;line-height:1.8;border:1px solid var(--control-border);border-radius:12px;padding:14px;resize:vertical}
+.import-prompt textarea {font-size:14px;min-height:180px}
+.import-choice-row {margin:12px 0;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.import-choice-row .import-course-choice {margin:0;border:0;border-radius:0;display:flex;align-items:center;padding:16px}
+.import-course-choice>span:first-of-type {flex:1;min-width:0;overflow-wrap:anywhere}
+.import-choice-status {flex:none;font-size:12px;padding:4px 8px;background:var(--soft);border-radius:6px}
+.import-choice-row .import-conflict {margin:0;padding:0 16px 16px;font-size:14px}
+.import-comparison {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:14px}
+.import-comparison section {min-width:0;padding:14px;background:var(--soft);border-radius:10px}
+.import-comparison pre {white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;font-size:13px;line-height:1.8}
+.import-review-actions,.workflow-actions {display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:12px;margin-top:24px;padding-top:18px;border-top:1px solid var(--line)}
+.import-review-actions>.flow-error {flex-basis:100%;margin:0}
+.workflow-actions button,.import-review-actions button {width:auto;min-width:150px;margin:0}
+.management-search {max-width:620px;margin:0 0 22px}
+.management-course[hidden],.member-picker label[hidden],.management-no-match[hidden] {display:none!important}
+.management-course-top {display:flex;gap:8px;align-items:center;justify-content:space-between}
+.course-membership,.publisher-membership {color:var(--primary);background:var(--soft);border-radius:5px;padding:3px 6px;font-size:11px;white-space:nowrap}
+.publisher-membership {margin-left:auto}
+.preload-columns {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:28px;margin-top:26px}
+.preload-columns>section {min-width:0}
+.preload-columns .picker-title {display:flex;justify-content:space-between;align-items:center;gap:10px;margin:0 0 12px}
+.preload-columns .picker-title h3 {font-size:16px}
+.preload-columns .picker-title span {color:var(--muted);font-size:12px}
+.preload-columns .search-box {margin:0 0 12px}
+.preload-columns .member-picker {max-height:340px;overflow:auto;overscroll-behavior:contain}
+.preload-columns .member-picker label {display:flex;align-items:center;padding:12px;min-height:65px}
+.preload-columns .member-picker label>span {min-width:0;overflow-wrap:anywhere}
+.preload-columns .member-picker small {display:block;line-height:1.6;margin-top:4px}
+.preload-review-heading {margin:24px 0 18px}
+.preload-review-heading h3 {font-size:20px}
+.preload-review-heading p {color:var(--muted);margin-top:6px}
+.preload-selected-courses {border:1px solid var(--line);border-radius:12px;padding:4px 16px;margin-bottom:18px}
+.preload-selected-courses p {padding:12px 0;margin:0;border-bottom:1px solid var(--line);overflow-wrap:anywhere}
+.preload-selected-courses p:last-child {border-bottom:0}
+.preload-selected-courses :is(strong,span,small) {display:block;line-height:1.7}
+.preload-selected-courses span,.preload-selected-courses small {font-size:13px;color:var(--muted)}
+.preload-plan p {gap:16px;overflow-wrap:anywhere}
+.ai-connection-heading strong,.ai-owner,.ai-wizard-file strong {min-width:0;overflow-wrap:anywhere}
+.ai-example {min-width:0;overflow-wrap:anywhere}
+.reading-heading,.hw-detail h2,.hw-managed-item strong,.management-course h3,.hw-comment p {overflow-wrap:anywhere}
+@media(max-width:767px) {
+ dialog.workflow-dialog {width:100%;height:var(--visible-height,100dvh);max-height:var(--visible-height,100dvh);inset:var(--viewport-top,0px) 0 auto;margin:0;border:0;border-radius:0;padding:20px 20px max(24px,env(safe-area-inset-bottom))}
+ .workflow-dialog h2 {font-size:24px}
+ .import-prepare-grid,.preload-columns,.import-comparison {grid-template-columns:minmax(0,1fr);gap:20px}
+ .import-prepare-grid .import-instruction {padding:18px}
+ .import-text-column #import-text {min-height:200px}
+ .import-course-choice {flex-wrap:wrap;gap:10px}
+ .import-review-actions,.workflow-actions {position:sticky;bottom:-20px;background:var(--surface);padding:14px 0 max(14px,env(safe-area-inset-bottom));z-index:2}
+ .workflow-actions button,.import-review-actions button {min-width:0;flex:1;font-size:14px}
+ .keyboard-open .workflow-actions,.keyboard-open .import-review-actions {position:static}
+ .preload-columns .member-picker {max-height:260px}
+ .preload-columns .picker-title {margin-top:8px}
+ .ai-connection .ai-row-actions {display:flex;gap:10px}
+ .ai-row-actions>button {flex:1;min-width:0}
+ .publisher-membership {white-space:normal;max-width:52px;text-align:center}
+}
+
+.hw-class-identity {display:block;font-size:12px;color:var(--muted);line-height:1.7;overflow-wrap:anywhere;margin-top:6px}
+.grid-lesson>* {min-width:0;max-width:100%}
+@media(max-width:639px) {
+ .grid-lesson strong {display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+ .grid-lesson strong>span.long-title,.grid-building {white-space:normal;overflow-wrap:anywhere}
+}
+
+.courses-layout.courses-empty-layout {grid-template-columns:minmax(0,1fr)}
+.courses-empty-layout .search-empty {max-width:460px;margin:auto;padding-block:64px}
+
+/* Submission channels are separate from assignment requirements. */
+.hw-submission-section{margin:24px 0;padding:20px 22px;border:1px solid var(--line);border-radius:16px;background:var(--soft);min-width:0}
+.hw-submission-section h3{margin:0 0 10px;font-size:15px;line-height:1.5}
+.hw-submission-content{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.75;font-size:15px}
+.hw-submission-content a{color:var(--primary);text-decoration:underline;text-underline-offset:3px}
+.hw-submission-content a:focus-visible{outline:2px solid var(--primary);outline-offset:3px;border-radius:3px}
+.hw-submission-empty{margin:0;color:var(--muted);font-size:14px}
+@media(max-width:700px){.hw-submission-section{margin:20px 0;padding:16px;border-radius:14px}}

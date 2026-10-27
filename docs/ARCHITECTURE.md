@@ -7,6 +7,10 @@
 - `classroom/importer.py`、`merge.py`：结构化导入、逐门对比、合并与恢复。
 - `classroom/community.py`：教学班身份、班级课程列表、管理员和课代表。
 - `classroom/course_homework.py`、`comments.py`：课程公共作业、个人完成和评论。
+- `classroom/push.py`、`reminders.py`：会话绑定的设备订阅、提醒内容和短期投递状态。
+- `classroom/reminder_changes.py`、`push_scheduler.py`、`push_dispatcher.py`：按变更标记受影响账号、到期调度与最多 5 个并发网络请求；SQLite 写入留在 worker 主线程。
+- `classroom/push_worker.py`：独立可选的通知发送进程，私钥与依赖不进入网页进程。
+- `classroom/update_notice.py`：按账号记录已读的新功能介绍。
 - `classroom/agent*.py`、`classroom/skills/kejian/`：API/CLI、可选 MCP、Skill 和在线能力同步。
 - `public/`：原生 ES Modules、CSS、图标与主屏幕安装提示。
 - `production.py`：共享静态资源白名单和响应头；班级入口统一要求登录。
@@ -37,3 +41,9 @@
 课表写入使用内容指纹，作业和评论使用 revision。写入时重新验证版本和角色，避免覆盖别人或自己的新编辑。课表移除后保存上一版；立即撤销需要对应 nextBase，后续课表变化会让旧撤销失效。
 
 AI 写操作具有幂等键与服务端校验，权限发生变化时立即使用当前角色。服务器是最终权限来源。
+
+## 提醒与账号隔离
+
+设备订阅绑定当前账号及会话。只为已主动开启提醒的设备规划任务；课程提醒读取个人课表，课程作业使用准确教学班，个人作业和完成状态仅按本人判断。发送前和通知显示前都再次核对归属。退出、换号或改密会使旧会话设备停止接收，客户端点击也校验当前账号。
+
+作业的 `submission` 是独立于 `notes` 的字段。未提供提交方式时保留旧值，显式空字符串表示清空；未知时不会从正文猜测。页面仅将没有嵌入凭据的 HTTP(S) 地址变成链接，其他渠道按文本显示。

@@ -39,4 +39,42 @@ python3 -m classroom.cli --db /path/to/private.sqlite3 backup --output /path/to/
 
 上线前在独立副本验证，再备份自己的数据库并发布代码。恢复代码通常不需要覆盖数据库；不要用旧数据库覆盖上线后的新作业、评论或账号记录。
 
-演示数据和演示密码用于本地开发，不导入正式数据库。班级版未包含旧个人版通知后台；手机推送需要后续单独配置与验收。
+演示数据和演示密码用于本地开发，不导入正式数据库。
+
+## 可选：iOS 消息提醒
+
+当前仅支持 iOS（iPhone / iPad）。接收者需要使用有效 HTTPS 来源，在 Safari 中添加到主屏幕，再从桌面打开、登录并主动开启设备提醒。普通桌面网页或 Android 浏览器的通知能力不在本版本支持范围内。
+
+Web 进程和通知 worker 使用同一个私密配置路径，通过 `KEJIAN_PUSH_CONFIG` 指向它。配置文件及 VAPID 私钥由部署者自行生成并保管，不放入仓库；包含以下字段：
+
+| 字段 | 含义 |
+| --- | --- |
+| `environment` | 正式环境填 `production`，对应 `KEJIAN_BASE=/mem/` |
+| `publicKey` | 自己生成的 VAPID 公钥，使用无填充的 Base64URL 编码 |
+| `privateKeyPath` | 私密 PEM 文件的绝对路径，仅运行用户可读 |
+| `subject` | 部署者自己的联系 URI，例如 `mailto:maintainer@example.com` |
+
+示例配置只展示字段结构，不包含可运行的密钥：
+
+```json
+{
+  "environment": "production",
+  "publicKey": "REPLACE_WITH_YOUR_OWN_VAPID_PUBLIC_KEY",
+  "privateKeyPath": "/etc/kejian/push-private.pem",
+  "subject": "mailto:maintainer@example.com"
+}
+```
+
+发送依赖单独安装到 worker 的虚拟环境。`deploy/requirements-push.txt` 固定了已验证的 Linux 发行包哈希；在其他操作系统上需要重新核对对应发行包，不要移除哈希校验来掩盖平台不匹配。
+
+```sh
+python3 -m venv /opt/kejian/push-venv
+/opt/kejian/push-venv/bin/pip install --require-hashes -r deploy/requirements-push.txt
+/opt/kejian/push-venv/bin/python -m classroom.push_worker
+```
+
+worker 也要加载 `KEJIAN_DB`、`KEJIAN_BASE`、`KEJIAN_PUSH_CONFIG`。当前安全校验要求正式数据库为 `/var/lib/kejian/classroom.sqlite3`；测试数据库位于 `/var/lib/kejian-test/` 且使用 `/mem-test/`。不要混用数据库、私钥、订阅、Cookie 或环境标识。
+
+`deploy/kejian-push.service` 是独立进程参考，限制内存和 CPU。调度器按变更只重算受影响账号；空闲时仅做轻量检查，定期兜底补齐滚动窗口；发送并发上限为 5。发送前再次核对会话、设备归属、教学班和完成状态。不确定的网络结果不盲目重发；系统只保留短期投递状态，不保留不断增长的提醒列表。
+
+没有开启该配置时，演示与网页功能照常运行，通知入口隐藏。部署者仍需在自己的 iOS 设备上验收锁屏、点击跳转、退出和换号隔离；仓库中的模拟测试不能替代真机验收。

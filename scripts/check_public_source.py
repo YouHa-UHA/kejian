@@ -6,14 +6,15 @@ import subprocess
 import sys
 
 ROOT=Path(__file__).resolve().parents[1]
-BLOCKED_PARTS={'.private','state','data','artifacts','.venv','node_modules','__pycache__','.workbuddy','.codebuddy'}
+BLOCKED_PARTS={'.private','state','data','artifacts','.venv','node_modules','__pycache__','.workbuddy','.codebuddy','kejian-android-lab'}
 BLOCKED_NAMES={'connection.json','connection-location.json','mcp.json'}
-BLOCKED_SUFFIXES={'.sqlite3','.sqlite','.db','.pem','.key','.p12','.pfx','.zip','.gz','.pyc'}
+BLOCKED_SUFFIXES={'.sqlite3','.sqlite','.db','.pem','.key','.p12','.pfx','.zip','.gz','.pyc','.apk','.jks','.keystore','.har','.xlsx','.csv'}
 PATTERNS={
     'private-key':re.compile(r'-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----'),
     'github-token':re.compile(r'\b(?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{30,})\b'),
     'ai-token':re.compile(r'\bkj_ai_[A-Za-z0-9_-]{40,80}\b'),
     'cloud-access-key':re.compile(r'\b(?:AKIA|ASIA)[A-Z0-9]{16}\b'),
+    'tencent-access-key':re.compile(r'\bAKID[A-Za-z0-9]{24,40}\b'),
     'mac-user-path':re.compile('/'+'Users'+r'/[^/\s]+/'),
     'roster-student-id':re.compile(r'\b2266[0-9]{4}\b'),
 }
@@ -21,9 +22,9 @@ IPV4=re.compile(r'(?<![\w.])(?:[0-9]{1,3}\.){3}[0-9]{1,3}(?![\w.])')
 
 
 def files():
-    result=subprocess.run(['git','ls-files','-z'],cwd=ROOT,text=True,capture_output=True)
+    result=subprocess.run(['git','ls-files','--cached','--others','--exclude-standard','-z'],cwd=ROOT,text=True,capture_output=True)
     if result.returncode==0 and result.stdout:
-        return [Path(p) for p in result.stdout.split('\0') if p]
+        return [Path(p) for p in dict.fromkeys(result.stdout.split('\0')) if p]
     return [p.relative_to(ROOT) for p in ROOT.rglob('*') if p.is_file()
             and not ({'.git','.venv','__pycache__','state'}&set(p.relative_to(ROOT).parts))]
 

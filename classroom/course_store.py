@@ -18,7 +18,7 @@ EVENT_FIELDS = {
     'end_time': 'TEXT', 'location': 'TEXT', 'note': 'TEXT', 'meeting_number': 'INTEGER',
     'periods': 'TEXT', 'teaching_week': 'INTEGER', 'nominal_time': 'TEXT', 'timezone': 'TEXT',
 }
-TASK_FIELDS = ('id','title','courseId','notes','dueDate','dueTime','createdAt',
+TASK_FIELDS = ('id','title','courseId','notes','submission','dueDate','dueTime','createdAt',
                'updatedAt','completedAt','deletedAt','revision')
 TABLES = ('course_schedules','course_courses','course_meetings','course_homework','course_migrations')
 
@@ -37,10 +37,12 @@ def schema(c):
             member INTEGER NOT NULL, slot TEXT NOT NULL, position INTEGER NOT NULL,
             fields TEXT NOT NULL, {columns}, PRIMARY KEY(member,slot,id),
             FOREIGN KEY(member,slot) REFERENCES course_schedules(member,slot) ON DELETE CASCADE{extra})''')
-    columns=','.join('"'+key+'" TEXT NOT NULL' for key in TASK_FIELDS)
+    columns=','.join('"'+key+'" TEXT NOT NULL'+(" DEFAULT '' CHECK(length(submission)<=2000)" if key=='submission' else '') for key in TASK_FIELDS)
     c.execute(f'''CREATE TABLE IF NOT EXISTS course_homework (
         member INTEGER NOT NULL REFERENCES members(id), {columns}, PRIMARY KEY(member,id),
         CHECK(length(trim(title)) BETWEEN 1 AND 120), CHECK(length(notes)<=10000))''')
+    if 'submission' not in {r[1] for r in c.execute('PRAGMA table_info(course_homework)')}:
+        c.execute("ALTER TABLE course_homework ADD COLUMN submission TEXT NOT NULL DEFAULT '' CHECK(length(submission)<=2000)")
     c.execute('CREATE INDEX IF NOT EXISTS course_meetings_date ON course_meetings(member,slot,date)')
     c.execute('CREATE INDEX IF NOT EXISTS course_homework_due ON course_homework(member,deletedAt,completedAt,dueDate)')
     c.execute('''CREATE TABLE IF NOT EXISTS course_migrations (
@@ -185,4 +187,4 @@ def put_task(c, member, task):
     columns=','.join('"'+k+'"' for k in TASK_FIELDS)
     updates=','.join('"'+k+'"=excluded."'+k+'"' for k in TASK_FIELDS if k!='id')
     c.execute(f'INSERT INTO course_homework(member,{columns}) VALUES({",".join("?" for _ in range(1+len(TASK_FIELDS)))}) ON CONFLICT(member,id) DO UPDATE SET {updates}',
-              (member,*(task[k] for k in TASK_FIELDS)))
+              (member,*(task.get(k,'') if k=='submission' else task[k] for k in TASK_FIELDS)))

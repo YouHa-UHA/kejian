@@ -13,7 +13,8 @@ def change(c,member,payload):
         t=payload.get('task')
         if not isinstance(t,dict):raise ValueError('作业格式无效')
         fields={'id','title','courseId','notes','dueDate','dueTime','createdAt','updatedAt','completedAt','deletedAt','revision'}
-        if set(t)!=fields or any(not isinstance(v,str) for v in t.values()):raise ValueError('作业格式无效')
+        if not fields<=set(t) or set(t)-fields-{'submission'} or any(not isinstance(v,str) for v in t.values()):raise ValueError('作业格式无效')
+        if len(t.get('submission','').strip())>2000:raise ValueError('提交方式不能超过2000字')
         if not re.fullmatch(r'[a-zA-Z0-9-]{1,80}',t['id']) or not t['title'].strip() or len(t['title'])>120 or len(t['notes'])>10000:raise ValueError('作业名称或内容无效')
         if t['id'].startswith('coursework-'):raise ValueError('课程作业请通过课程入口管理')
         if t['dueDate']:
@@ -21,6 +22,7 @@ def change(c,member,payload):
             except ValueError:raise ValueError('截止日期无效')
         if t['dueTime'] and (not t['dueDate'] or not re.fullmatch(r'([01]\d|2[0-3]):[0-5]\d',t['dueTime'])):raise ValueError('截止时间无效')
         old=next((x for x in items if x['id']==t['id']),None)
+        t={**t,'submission':t.get('submission',old['submission'] if old else '').strip()}
         if (old['revision'] if old else None)!=payload.get('expected'):raise ValueError('这条作业已更新，请刷新后再修改')
         schedule=course_store.read_schedule(c,member)
         if t['courseId'] not in {c['id'] for c in schedule['courses']} and (not old or old['courseId']!=t['courseId']):raise ValueError('请选择自己的课程')

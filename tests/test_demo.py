@@ -1,4 +1,5 @@
 from pathlib import Path
+import tarfile
 import tempfile
 import unittest
 from classroom.demo import seed,DEMO_MEMBERS
@@ -37,6 +38,19 @@ class DemoTests(unittest.TestCase):
             self.assertTrue((PUBLIC/filename).is_file(),filename)
         for private in ('/classroom/app.py','/examples/demo-schedule.json','/state/demo.sqlite3','/reminders.html','/push-test.html','/wechat-test.html'):
             self.assertNotIn(private,FILES)
+
+    def test_release_package_keeps_backend_reminders_and_fictional_demo_dependency(self):
+        from deploy.build_classroom import build
+        with tempfile.TemporaryDirectory() as folder:
+            archive=Path(folder)/'source.tar.gz'
+            build(archive)
+            with tarfile.open(archive) as package:
+                names=package.getnames()
+            for path in ('classroom/reminders.py','classroom/push_worker.py','classroom/push_scheduler.py',
+                         'classroom/push_dispatcher.py','examples/demo-schedule.json'):
+                self.assertIn(path,names)
+            for name in names:
+                self.assertFalse(name.endswith(('.sqlite3','.pem','.apk')))
 
 
 if __name__=='__main__':unittest.main()

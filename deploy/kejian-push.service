@@ -1,0 +1,32 @@
+[Unit]
+Description=Kejian optional iOS reminder sender
+After=network.target
+
+[Service]
+Type=simple
+User=kejian
+Group=kejian
+WorkingDirectory=/opt/kejian/current
+EnvironmentFile=/etc/kejian/runtime.env
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/opt/kejian/push-venv/bin/python -m classroom.push_worker
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/kejian
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+MemoryMax=128M
+CPUQuota=10%
+TasksMax=16
+
+[Install]
+WantedBy=multi-user.target

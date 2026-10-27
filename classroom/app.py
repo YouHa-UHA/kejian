@@ -16,7 +16,7 @@ import time
 from urllib.parse import urlsplit, parse_qs
 
 from production import FILES, HEADERS, PUBLIC
-from . import course_store, homework, importer, merge, community, course_homework, agent, import_guide, agent_mcp, comments
+from . import course_store, homework, importer, merge, community, course_homework, agent, import_guide, agent_mcp, comments, push, update_notice
 
 
 class Problem(Exception):
@@ -59,6 +59,7 @@ def initialize(path):
         course_homework.schema(c)
         comments.schema(c)
         agent.schema(c)
+        update_notice.schema(c)
         community.migrate_existing(c)
     path.chmod(0o600)
 
@@ -93,8 +94,11 @@ def provision(path, rows, default_password=None):
 
 
 class ClassroomApplication:
-    def __init__(self, database, origin='http://127.0.0.1:4186', base='/', release='classroom-dev', extra_origins=()):
+    def __init__(self, database, origin='http://127.0.0.1:4186', base='/', release='classroom-dev', extra_origins=(), cookie_name='kejian_session', push_config=None):
         self.database, self.origin, self.base, self.release = str(database), origin.rstrip('/'), base, release
+        if not re.fullmatch(r'[A-Za-z][A-Za-z0-9_]{0,63}', cookie_name):
+            raise ValueError('cookie_name must be a simple cookie identifier')
+        self.cookie_name = cookie_name
         self.allowed_origins = frozenset((self.origin, *(x.rstrip('/') for x in extra_origins)))
         for value in self.allowed_origins:
             parsed = urlsplit(value)
@@ -102,7 +106,10 @@ class ClassroomApplication:
                 raise ValueError('origin must be an explicit HTTP(S) origin')
         if not base.startswith('/') or not base.endswith('/'):
             raise ValueError('base must start and end with /')
+        self.push_config = push.config(push_config, base)
         initialize(database)
+        if self.push_config:
+            with connect(database) as c: push.schema(c)
 
     def __call__(self, env, start):
         method, path = env.get('REQUEST_METHOD', 'GET'), env.get('PATH_INFO', '/')
@@ -134,11 +141,14 @@ class ClassroomApplication:
 
         def cookie(token='', age=30*86400):
             secure = '; Secure' if self.origin.startswith('https://') else ''
-            return ('Set-Cookie', f'kejian_session={token}; Path={self.base}; HttpOnly; SameSite=Lax; Max-Age={age}{secure}')
+            return ('Set-Cookie', f'{self.cookie_name}={token}; Path={self.base}; HttpOnly; SameSite=Lax; Max-Age={age}{secure}')
 
         try:
+            if path in ('/notifications.html','/notifications.mjs','/notifications-account.mjs','/notifications-isolation.mjs'):
+                raise Problem(404,'页面不存在')
             if method in ('GET', 'HEAD') and path in FILES:
                 filename, mime = FILES[path]
+                if path.startswith('/notifications') and not self.push_config: raise Problem(404, '页面不存在')
                 # Legacy single-person notification experiments are not exposed in classroom mode.
                 if path in ('/reminders.html', '/reminders.mjs', '/push-test.html', '/push-test.mjs', '/wechat-test.html', '/wechat-test.mjs'):
                     raise Problem(404, '页面不存在')
@@ -184,13 +194,18 @@ class ClassroomApplication:
                         test = password_hash(password, salt)
                         if not user or not user['password_hash'] or not hmac.compare_digest(test, user['password_hash']):
                             raise Problem(401, '学号或密码不正确')
+                    if self.push_config:
+                        previous = SimpleCookie()
+                        try: previous.load(env.get('HTTP_COOKIE',''))
+                        except Exception: pass
+                        if self.cookie_name in previous: push.deactivate(c,session=digest(previous[self.cookie_name].value))
                     token = secrets.token_urlsafe(32)
                     c.execute('INSERT INTO sessions VALUES(?,?,?)', (digest(token), user['id'], now+30*86400))
                 return reply(200, {'ok': True}, extra=[cookie(token)])
             jar = SimpleCookie()
             try:
                 jar.load(env.get('HTTP_COOKIE', ''))
-                token = jar['kejian_session'].value if 'kejian_session' in jar else ''
+                token = jar[self.cookie_name].value if self.cookie_name in jar else ''
             except Exception:
                 token = ''
             user = c.execute('SELECT m.* FROM members m JOIN sessions s ON s.member=m.id WHERE s.token_hash=? AND s.expires>? AND m.disabled=0', (digest(token), int(time.time()))).fetchone()
@@ -198,10 +213,15 @@ class ClassroomApplication:
                 raise Problem(401, '请登录课间')
             member = user['id']
             if method in ('GET', 'HEAD'):
+                if path == '/api/push/config':
+                    if not self.push_config: raise Problem(404,'通知尚未开启')
+                    return reply(200,{'publicKey':self.push_config['publicKey'],'delaySeconds':push.TEST_DELAY_SECONDS,'scope':self.base,'environment':self.push_config['environment'],'workerOnline':push.worker_online(c)})
                 if path == '/api/ai-connections':
                     return reply(200, agent.connections(c, member))
+                if path == '/api/update-notice':
+                    return reply(200,update_notice.current(c,member) if self.push_config else {'notice':None,'seen':True})
                 if path == '/api/session':
-                    return reply(200, {'id': member, 'student': user['student'], 'name': user['name'], 'shared': bool(user['shared']), **community.roles(c, member)})
+                    return reply(200, {'id': member, 'student': user['student'], 'name': user['name'], 'shared': bool(user['shared']), 'pushEnabled':bool(self.push_config), **community.roles(c, member)})
                 if path == '/api/schedule':
                     return reply(200, {**course_store.read_schedule(c, member), 'schema_version': 2, 'ownerName': user['name']})
                 if path == '/api/homework':
@@ -225,13 +245,25 @@ class ClassroomApplication:
                 b = body()
                 if type(b.get('owner')) is not int or b['owner'] != member:
                     raise Problem(403, '账号已变化，请刷新后重试')
+                if path == '/api/update-notice':
+                    if not self.push_config: raise Problem(404,'更新介绍尚未开启')
+                    return reply(200,update_notice.dismiss(c,member,b))
+                if path.startswith('/api/push/'):
+                    if not self.push_config: raise Problem(404,'通知尚未开启')
+                    action=path.removeprefix('/api/push/')
+                    if self.push_config['environment']=='production' and action not in {'register','status','reminder-settings','reminder-settings-save','reminders-enable','reminders-disable','disable','test','cancel','receipt'}:
+                        raise Problem(404,'通知操作不存在')
+                    if action=='receipt': return reply(200,push.receipt(c,member,digest(token),b))
+                    return reply(200,push.change(c,member,digest(token),action,b))
                 if path == '/api/ai-connections':
                     package = agent.issue(c, member, b, self.origin+self.base+'api/agent/v1')
                     if package is not None:
                         return reply(200, package, 'application/zip', [('Content-Disposition', 'attachment; filename="kejian-ai-connection.zip"')])
                     return reply(200, {'ok': True})
                 if path == '/api/logout':
-                    c.execute('DELETE FROM sessions WHERE token_hash=?', (digest(token),))
+                    with course_store.transaction(c,write=True):
+                        if self.push_config: push.deactivate(c,session=digest(token))
+                        c.execute('DELETE FROM sessions WHERE token_hash=?', (digest(token),))
                     return reply(200, {'ok': True}, extra=[cookie(age=0)])
                 if path == '/api/password':
                     if set(b)!={'owner','currentPassword','newPassword','confirmPassword'}:
@@ -257,6 +289,7 @@ class ClassroomApplication:
                             raise Problem(400,'当前密码不正确')
                         salt=secrets.token_hex(16)
                         c.execute('UPDATE members SET salt=?,password_hash=? WHERE id=?',(salt,password_hash(new,salt),member))
+                        if self.push_config: push.deactivate(c,member=member)
                         c.execute('DELETE FROM sessions WHERE member=?',(member,))
                         fresh_token=secrets.token_urlsafe(32)
                         c.execute('INSERT INTO sessions VALUES(?,?,?)',(digest(fresh_token),member,stamp+30*86400))
@@ -352,4 +385,4 @@ class ClassroomApplication:
 
 
 def production():
-    return ClassroomApplication(os.environ['KEJIAN_DB'], os.environ['KEJIAN_ORIGIN'], os.environ.get('KEJIAN_BASE', '/mem/'), os.environ.get('KEJIAN_RELEASE', 'classroom-v1'), tuple(x.strip() for x in os.environ.get('KEJIAN_EXTRA_ORIGINS', '').split(',') if x.strip()))
+    return ClassroomApplication(os.environ['KEJIAN_DB'], os.environ['KEJIAN_ORIGIN'], os.environ.get('KEJIAN_BASE', '/mem/'), os.environ.get('KEJIAN_RELEASE', 'classroom-v1'), tuple(x.strip() for x in os.environ.get('KEJIAN_EXTRA_ORIGINS', '').split(',') if x.strip()), os.environ.get('KEJIAN_COOKIE_NAME', 'kejian_session'), json.loads(Path(os.environ['KEJIAN_PUSH_CONFIG']).read_text()) if os.environ.get('KEJIAN_PUSH_CONFIG') else None)
